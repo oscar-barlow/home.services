@@ -25,3 +25,11 @@ services:
     restart: unless-stopped
     logging:
       driver: syslog
+
+  nginx:
+    container_name: nginx
+    image: nginx:latest
+    ports:
+      - 81:80
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf
