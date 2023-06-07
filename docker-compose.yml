@@ -33,3 +33,13 @@ services:
       - 81:80
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
+  metabase:
+    container_name: metabase
+    image: metabase/metabase:v0.46.4
+    ports:
+      - 82:3000
+    env_file:
+      - metabase.env
+    volumes:
+      - ./metabase-data:/metabase-data
