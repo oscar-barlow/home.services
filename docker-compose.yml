@@ -34,3 +34,15 @@ services:
       - 81:80
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
+
+  grafana:
+    container_name: grafana
+    image: grafana/grafana:8.4.3-armv7
+    volumes:
+      - grafana-storage:/var/lib/grafana
+    ports:
+      - 82:3000
+    restart: unless-stopped
+
+volumes:
+  grafana-storage:
