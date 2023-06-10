@@ -27,6 +27,7 @@ services:
       driver: syslog
 
   nginx:
+    restart: unless-stopped
     container_name: nginx
     image: nginx:latest
     ports:
