@@ -2,5 +2,8 @@
 etc-dnsmasq.d
 etc-pihole/
 
-#env
+# env
 *.env
+
+# flyway
+migrations/flyway.conf

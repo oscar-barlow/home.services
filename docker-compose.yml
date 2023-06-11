@@ -44,5 +44,11 @@ services:
       - 82:3000
     restart: unless-stopped
 
+  migrate:
+    container_name: flyway
+    networks:
+      - default
+    build: ./migrations/
+
 volumes:
   grafana-storage:
