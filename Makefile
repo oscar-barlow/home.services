@@ -1,6 +1,6 @@
 .PHONY: build
 build:
-	docker-compose build -t 
+	docker-compose build
 
 .PHONY: migrate
 migrate: build
