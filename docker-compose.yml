@@ -39,7 +39,8 @@ services:
     container_name: grafana
     image: grafana/grafana:8.4.3-armv7
     volumes:
-      - grafana-storage:/var/lib/grafana
+      - grafana/storage:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     ports:
       - 82:3000
     restart: unless-stopped
@@ -50,5 +51,3 @@ services:
       - default
     build: ./migrations/
 
-volumes:
-  grafana-storage:
