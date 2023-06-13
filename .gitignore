@@ -7,3 +7,6 @@ etc-pihole/
 
 # flyway
 migrations/flyway.conf
+
+# grafana
+grafana/

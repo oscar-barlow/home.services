@@ -37,9 +37,9 @@ services:
 
   grafana:
     container_name: grafana
-    image: grafana/grafana:8.4.3-armv7
+    image: grafana/grafana-oss:9.5.3
     volumes:
-      - grafana/storage:/var/lib/grafana
+      - ./grafana/storage:/var/lib/grafana
       - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
     ports:
       - 82:3000
