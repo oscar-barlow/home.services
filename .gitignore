@@ -10,3 +10,9 @@ plex/config/
 plex/media
 !plex/config/.gitkeep
 !plex/media/.gitkeep
+
+# jellyfin
+jellyfin/config/
+jellyfin/cache
+!jellyfin/config/.gitkeep
+!jellyfin/cache/.gitkeep
