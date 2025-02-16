@@ -5,23 +5,17 @@ services:
   pihole:
     container_name: pihole
     image: pihole/pihole:2023.03.1
-    # For DHCP it is recommended to remove these ports and instead add: network_mode: "host"
     ports:
       - "53:53/tcp"
-      - "53:53/udp"
-#      - "67:67/udp" # Only required if you are using Pi-hole as your DHCP server
+      - "53:53/udp" 
       - "80:80/tcp"
     environment:
       TZ: 'Europe/London'
       FTLCONF_LOCAL_IPV4: '192.168.1.204'
       DNSMASQ_LISTENING: 'all'
-    # Volumes store your data between container upgrades
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
-    #   https://github.com/pi-hole/docker-pi-hole#note-on-capabilities
-    #    cap_add:
-    #  - NET_ADMIN # Required if you are using Pi-hole as your DHCP server, else not needed
     restart: unless-stopped
     logging:
       driver: syslog
@@ -35,20 +29,24 @@ services:
     volumes:
       - ./nginx.conf:/etc/nginx/conf.d/default.conf
 
-  grafana:
-    container_name: grafana
-    image: grafana/grafana:8.4.3-armv7
-    volumes:
-      - grafana-storage:/var/lib/grafana
-    ports:
-      - 82:3000
+  plex:
+    container_name: plex
+    image: plexinc/pms-docker:latest
     restart: unless-stopped
-
-  migrate:
-    container_name: flyway
-    networks:
-      - default
-    build: ./migrations/
-
-volumes:
-  grafana-storage:
+    # ports:
+    #   - 32400:32400/tcp
+    #   - 3005:3005/tcp
+    #   - 8324:8324/tcp
+    #   - 32469:32469/tcp
+    #   - 1900:1900/udp
+    #   - 32410:32410/udp
+    #   - 32412:32412/udp
+    #   - 32413:32413/udp
+    #   - 32414:32414/udp
+    environment:
+      - TZ=Europe/London
+      - PLEX_CLAIM=claim-YOURCLAIMTOKEN
+    volumes:
+      - ./plex/config:/config
+      - ./plex/media:/media
+    network_mode: host

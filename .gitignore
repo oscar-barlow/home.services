@@ -5,5 +5,8 @@ etc-pihole/
 # env
 *.env
 
-# flyway
-migrations/flyway.conf
+# plex
+plex/config/
+plex/media
+!plex/config/.gitkeep
+!plex/media/.gitkeep

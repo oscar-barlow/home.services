@@ -1,4 +1,0 @@
-flyway.url=url_replace_me
-flyway.user=user_replace_me
-flyway.password=password_replace_me
-flyway.locations=filesystem:sql
