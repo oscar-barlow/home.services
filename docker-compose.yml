@@ -56,7 +56,7 @@ services:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
       - type: bind
-        source: /home/oscar/Music
+        source: /media/pi/Media/Music
         target: /Music
         read_only: true
     restart: 'unless-stopped'
