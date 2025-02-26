@@ -1,3 +1,9 @@
+version: '3'
+
+networks:
+  local_network:
+    driver: bridge
+
 services:
   pihole:
     container_name: pihole
@@ -5,7 +11,7 @@ services:
     ports:
       - "53:53/tcp"
       - "53:53/udp" 
-      - "80:80/tcp"
+      - "81:80/tcp"  # Changed from 80:80 to 81:80 to expose Pi-hole web interface on port 81
     environment:
       TZ: 'Europe/London'
       FTLCONF_LOCAL_IPV4: '192.168.1.204'
@@ -13,23 +19,33 @@ services:
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
+      - './custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     restart: unless-stopped
     logging:
       driver: syslog
+    networks:
+      - local_network
 
   nginx:
     restart: unless-stopped
     container_name: nginx
     image: nginx:latest
     ports:
-      - 81:80
+      - "443:443"  # HTTPS port
+      - "80:80"    # HTTP port
     volumes:
-      - ./nginx.conf:/etc/nginx/conf.d/default.conf
-  
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
+    depends_on:
+      - pihole
+      - jellyfin
+    networks:
+      - local_network
+
   jellyfin:
-    image: jellyfin/jellyfin:2025022405
+    image: jellyfin/jellyfin
     container_name: jellyfin
-    network_mode: host
+    network_mode: host  # Restored the original network_mode: host
     volumes:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
