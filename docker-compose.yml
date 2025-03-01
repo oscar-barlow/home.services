@@ -5,6 +5,21 @@ networks:
     driver: bridge
 
 services:
+  nginx:
+    restart: unless-stopped
+    container_name: nginx
+    image: nginx:latest
+    ports:
+      - "443:443"  # HTTPS port
+      - "80:80"    # HTTP port
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d
+      - ./nginx/certs:/etc/nginx/certs
+    depends_on:
+      - pihole
+      - jellyfin
+    networks:
+      - local_network
   pihole:
     container_name: pihole
     image: pihole/pihole:2024.07.0
@@ -26,21 +41,17 @@ services:
     networks:
       - local_network
 
-  nginx:
-    restart: unless-stopped
-    container_name: nginx
-    image: nginx:latest
-    ports:
-      - "443:443"  # HTTPS port
-      - "80:80"    # HTTP port
+  code-server:
+    image: lscr.io/linuxserver/code-server:latest
+    container_name: code-server
+    environment:
+      - TZ=Etc/UTC
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/nginx/certs
-    depends_on:
-      - pihole
-      - jellyfin
-    networks:
-      - local_network
+      - /home/pi/.ssh:/config/.ssh
+      - /home/pi/Projects:/Projects
+    ports:
+      - 8443:8443
+    restart: unless-stopped
 
   jellyfin:
     image: jellyfin/jellyfin:2025022405
