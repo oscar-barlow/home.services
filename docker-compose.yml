@@ -61,10 +61,6 @@ services:
         source: /media/pi/Media/Books
         target: /Books
         read_only: true
-      - type: bind
-        source: /media/pi/Media/Childrens Movies
-        target: /Childrens Movies
-        read_only: true
     restart: 'unless-stopped'
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
