@@ -49,7 +49,6 @@ services:
       - type: bind
         source: /media/pi/Media/Music
         target: /Music
-        read_only: true
       - type: bind
         source: /media/pi/Media/Movies
         target: /Movies
