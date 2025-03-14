@@ -16,3 +16,6 @@ jellyfin/config/
 jellyfin/cache
 !jellyfin/config/.gitkeep
 !jellyfin/cache/.gitkeep
+
+# kavita
+kavita/*
