@@ -62,3 +62,16 @@ services:
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  kavita:
+      image: jvmilazz0/kavita:0.8.5
+      container_name: kavita
+      volumes:
+          - /media/pi/edia/Books:/books
+          - ./kavita/config:/kavita/config     # /kavita/config must not be changed
+      environment:
+          - TZ=Europe/London
+          - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=true
+      ports:
+          - "5000:5000"
+      restart: unless-stopped
