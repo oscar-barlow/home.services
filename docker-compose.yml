@@ -65,3 +65,14 @@ services:
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  audiobookshelf:
+    image: ghcr.io/advplyr/audiobookshelf:2.20.0
+    ports:
+      - 13378:80
+    volumes:
+      - /media/pi/Media/Books/Audiobooks:/audiobooks
+      - ./audiobookshelf/config:/config
+      - ./audiobookshelf/metadata:/metadata
+    environment:
+      - TZ=Europe/London
