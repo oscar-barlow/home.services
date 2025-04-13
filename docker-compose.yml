@@ -43,7 +43,7 @@ services:
       - local_network
 
   jellyfin:
-    image: jellyfin/jellyfin:2025022405
+    image: jellyfin/jellyfin:2025040803
     container_name: jellyfin
     network_mode: host
     volumes:
