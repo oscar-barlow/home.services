@@ -20,19 +20,22 @@ services:
       - local_network
   pihole:
     container_name: pihole
-    image: pihole/pihole:2024.07.0
+    image: pihole/pihole:2025.04.0
     ports:
       - "53:53/tcp"
       - "53:53/udp" 
-      - "81:80/tcp"  # Changed from 80:80 to 81:80 to expose Pi-hole web interface on port 81
+      - "81:80/tcp"  # Expose Pi-hole web interface on port 81
     environment:
       TZ: 'Europe/London'
-      FTLCONF_LOCAL_IPV4: '192.168.1.204'
-      DNSMASQ_LISTENING: 'all'
+      FTLCONF_local_ipv4: '192.168.1.204'
+      FTLCONF_dns_listeningMode: 'all'
+      FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
       - './custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
+    cap_add:
+      - NET_ADMIN  # Required for Pi-hole to function properly
     restart: unless-stopped
     logging:
       driver: "json-file"
