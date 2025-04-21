@@ -67,7 +67,7 @@ services:
         target: /ChildrensMovies
       - type: bind
         source: /media/pi/Media/Audiobooks
-        target: /Audiosbooks
+        target: /Audiobooks
     restart: 'unless-stopped'
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
