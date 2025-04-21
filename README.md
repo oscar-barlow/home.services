@@ -1,17 +1,52 @@
-# home.services
+# Home Services
 
-Containerised services that can run on a Raspberry Pi on a home network. Paired with a systemd unit so they launch on machine startup, with logs sent to systemout so that you can explore them with `journalctl`.
+A collection of containerized services for a home network environment.
 
-## setup
-1. copy the systemd unit to the appropriate place in the file system: `sudo cp ...`
-2. reload systemd units:
-2. enable the systemd unit if this is first-time setup, otherwise you may just want to execute the unit 
+## Services
 
-The docker services are configured with a restart policy of `unless-stopped`, so that you don't have to figure out how to squash them if you decide you don't want to run one any more. This means there are two levels of guarantee to the operational resilience of these services. If the services crash, the docker daemon will restart them. On the other hand, if the pi restarts, the systemd unit will restart the services. Most of the safety is provided by the docker daemon, systemd is a nice backup.
+### Nginx
+- Reverse proxy on ports 80 (HTTP) and 443 (HTTPS)
+- Configuration in `./nginx/conf.d`
+- SSL certificates in `./nginx/certs`
 
+### Pi-hole
+- DNS filtering and ad blocking
+- Web interface on port 81
+- DNS services on port 53 (TCP/UDP)
+- Custom DNS configurations via `custom-dns.conf`
+- Log rotation configured (10M max size, 3 files)
 
-## services
+### Jellyfin
+- Media server using host networking
+- Access to media directories:
+  - Music
+  - Movies
+  - Books
+  - ChildrensMovies
+- Configuration persisted in `./jellyfin/config`
 
-### pihole
-Using the instructions from the official docker-pi-hole repo to run a customised pi-hole.
+## Network
 
+All services use a bridge network named `local_network` except Jellyfin, which uses host networking for performance.
+
+## Usage
+
+```bash
+# Start all services in detached mode
+docker-compose up -d
+
+# View logs
+docker-compose logs
+
+# Stop all services
+docker-compose down
+
+# Rebuild containers
+docker-compose build
+# or
+make build
+```
+
+## Resilience
+
+All services use the `unless-stopped` restart policy to automatically recover from crashes.
