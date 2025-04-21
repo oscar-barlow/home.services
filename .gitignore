@@ -14,8 +14,10 @@ plex/media
 # jellyfin
 jellyfin/config/
 jellyfin/cache
+jellyfin/tmp
 !jellyfin/config/.gitkeep
 !jellyfin/cache/.gitkeep
+!jellyfin/tmp/.gitkeep
 
 # kavita
 kavita/*

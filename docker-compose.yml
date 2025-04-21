@@ -52,6 +52,7 @@ services:
     volumes:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
+      - ./jellyfin/tmp:/tmp/jellyfin
       - type: bind
         source: /media/pi/Media/Music
         target: /Music
