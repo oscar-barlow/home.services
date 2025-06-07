@@ -3,7 +3,8 @@ etc-dnsmasq.d
 etc-pihole/
 
 # env
-*.env
+.env.*
+!.env.example
 
 # plex
 plex/config/
