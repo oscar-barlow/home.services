@@ -10,13 +10,13 @@ networks:
       config:
         - subnet: 192.168.1.0/24
           gateway: 192.168.1.1
-          ip_range: 192.168.1.192/58
+          ip_range: 192.168.1.192/26
 
 services:
   nginx:
     restart: unless-stopped
-    container_name: nginx
-    image: nginx:latest
+    container_name: nginx-${ENV_NAME}
+    image: nginx:${NGINX_VERSION}
     ports:
       - "443:443"  # HTTPS port
       - "80:80"    # HTTP port
@@ -29,8 +29,8 @@ services:
     networks:
       - local_network
   pihole:
-    container_name: pihole
-    image: pihole/pihole:2025.04.0
+    container_name: pihole-${ENV_NAME}
+    image: pihole/pihole:${PIHOLE_VERSION}
     ports:
       - "53:53/tcp"
       - "53:53/udp" 
@@ -56,8 +56,8 @@ services:
       - local_network
 
   jellyfin:
-    image: jellyfin/jellyfin:2025040803
-    container_name: jellyfin
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
+    container_name: jellyfin-${ENV_NAME}
     network_mode: host
     volumes:
       - ./jellyfin/config:/config
@@ -82,3 +82,13 @@ services:
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  hello-world:
+    image: nginx:${HELLO_WORLD_VERSION}
+    container_name: hello-world-${ENV_NAME}
+    restart: unless-stopped
+    volumes:
+      - ./hello-world:/usr/share/nginx/html:ro
+    networks:
+      homelab_macvlan:
+        ipv4_address: ${HELLO_WORLD_IP}
