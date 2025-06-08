@@ -31,19 +31,20 @@ services:
   pihole:
     container_name: pihole-${ENV_NAME}
     image: pihole/pihole:${PIHOLE_VERSION}
-    ports:
-      - "53:53/tcp"
-      - "53:53/udp" 
-      - "81:80/tcp"  # Expose Pi-hole web interface on port 81
     environment:
       TZ: 'Europe/London'
-      FTLCONF_local_ipv4: '192.168.1.204'
+      FTLCONF_local_ipv4: '${PIHOLE_IP}'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
+      HELLO_WORLD_IP: ${HELLO_WORLD_IP}
+      JELLYFIN_IP: ${JELLYFIN_IP}
+      PIHOLE_IP: ${PIHOLE_IP}
+      DOMAIN: ${DOMAIN}
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
-      - './custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
+      - './generate-dns-config.sh:/docker-entrypoint.d/generate-dns-config.sh'
+      - './custom-dns.conf.template:/etc/dnsmasq.d/02-custom-dns.conf.template'
     cap_add:
       - NET_ADMIN  # Required for Pi-hole to function properly
     restart: unless-stopped
@@ -53,7 +54,8 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - local_network
+      homelab_macvlan:
+        ipv4_address: ${PIHOLE_IP}
 
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
