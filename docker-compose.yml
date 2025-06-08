@@ -82,3 +82,13 @@ services:
     # Optional - may be necessary for docker healthcheck to pass if running in host network mode
     extra_hosts:
       - 'host.docker.internal:host-gateway'
+
+  hello-world:
+    image: nginx:alpine
+    container_name: hello-world
+    restart: unless-stopped
+    volumes:
+      - ./hello-world:/usr/share/nginx/html:ro
+    networks:
+      homelab_macvlan:
+        ipv4_address: 192.168.1.200
