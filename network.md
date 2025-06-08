@@ -8,7 +8,11 @@
 
 ## Network Design
 ### IP Address Allocation
-Router DHCP Range:    192.168.1.2 - 192.168.1.191
-Container Subnet:     192.168.1.192/26 (192.168.1.192-255)
-├── Production:       192.168.1.192/27 (192.168.1.192-223)
-└── Preproduction:    192.168.1.224/27 (192.168.1.224-255)
+DHCP Range (dynamic devices):     192.168.1.2 - 192.168.1.191
+Container Ranges:
+├── Production:                   192.168.1.192 - 192.168.1.223 (/27)
+└── Preprod:                     192.168.1.224 - 192.168.1.249 (/27)
+
+Infrastructure (reserved):        192.168.1.250 - 192.168.1.255
+├── macvlan shim:                192.168.1.254
+└── Future network tools:        192.168.1.250 - 192.168.1.253

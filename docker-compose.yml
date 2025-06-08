@@ -2,6 +2,16 @@ networks:
   local_network:
     driver: bridge
 
+  homelab_macvlan:
+    driver: macvlan
+    driver_opts:
+      parent: eth0
+    ipam:
+      config:
+        - subnet: 192.168.1.0/24
+          gateway: 192.168.1.1
+          ip_range: 192.168.1.192/58
+
 services:
   nginx:
     restart: unless-stopped
