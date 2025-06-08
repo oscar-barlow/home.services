@@ -58,9 +58,8 @@ services:
         ipv4_address: ${PIHOLE_IP}
 
   jellyfin:
-    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     container_name: jellyfin-${ENV_NAME}
-    network_mode: host
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
       - ./jellyfin/config:/config
       - ./jellyfin/cache:/cache
@@ -81,13 +80,13 @@ services:
         source: /media/pi/Media/Audiobooks
         target: /Audiobooks
     restart: 'unless-stopped'
-    # Optional - may be necessary for docker healthcheck to pass if running in host network mode
-    extra_hosts:
-      - 'host.docker.internal:host-gateway'
+    networks:
+      homelab_macvlan:
+        ipv4_address: ${JELLYFIN_IP}
 
   hello-world:
-    image: nginx:${HELLO_WORLD_VERSION}
     container_name: hello-world-${ENV_NAME}
+    image: nginx:${HELLO_WORLD_VERSION}
     restart: unless-stopped
     volumes:
       - ./hello-world:/usr/share/nginx/html:ro
