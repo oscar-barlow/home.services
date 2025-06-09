@@ -21,8 +21,8 @@ services:
       - "443:443"  # HTTPS port
       - "80:80"    # HTTP port
     volumes:
-      - ./nginx/conf.d:/etc/nginx/conf.d
-      - ./nginx/certs:/etc/nginx/certs
+      - ./nginx/${ENV_NAME}/conf.d:/etc/nginx/conf.d
+      - ./nginx/${ENV_NAME}/certs:/etc/nginx/certs
     depends_on:
       - pihole
       - jellyfin
@@ -37,8 +37,8 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
     volumes:
-      - './etc-pihole:/etc/pihole'
-      - './etc-dnsmasq.d:/etc/dnsmasq.d'
+      - './pihole/${ENV_NAME}/etc-pihole:/etc/pihole'
+      - './pihole/${ENV_NAME}/etc-dnsmasq.d:/etc/dnsmasq.d'
       - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     cap_add:
       - NET_ADMIN  # Required for Pi-hole to function properly
@@ -56,9 +56,9 @@ services:
     container_name: jellyfin-${ENV_NAME}
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
-      - ./jellyfin/config:/config
-      - ./jellyfin/cache:/cache
-      - ./jellyfin/tmp:/tmp/jellyfin
+      - ./jellyfin/${ENV_NAME}/config:/config
+      - ./jellyfin/${ENV_NAME}/cache:/cache
+      - ./jellyfin/${ENV_NAME}/tmp:/tmp/jellyfin
       - type: bind
         source: /media/pi/Media/Music
         target: /Music
@@ -84,7 +84,7 @@ services:
     image: nginx:${HELLO_WORLD_VERSION}
     restart: unless-stopped
     volumes:
-      - ./hello-world:/usr/share/nginx/html:ro
+      - ./hello-world/${ENV_NAME}:/usr/share/nginx/html:ro
     networks:
       homelab_macvlan:
         ipv4_address: ${HELLO_WORLD_IP}

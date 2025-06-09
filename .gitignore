@@ -1,6 +1,7 @@
 # pihole
 etc-dnsmasq.d
 etc-pihole/
+pihole/*/
 
 # env
 .env.*
