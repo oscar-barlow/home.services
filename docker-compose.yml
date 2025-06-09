@@ -13,21 +13,6 @@ networks:
           ip_range: 192.168.1.192/26
 
 services:
-  nginx:
-    restart: unless-stopped
-    container_name: nginx-${ENV_NAME}
-    image: nginx:${NGINX_VERSION}
-    ports:
-      - "443:443"  # HTTPS port
-      - "80:80"    # HTTP port
-    volumes:
-      - ./nginx/${ENV_NAME}/conf.d:/etc/nginx/conf.d
-      - ./nginx/${ENV_NAME}/certs:/etc/nginx/certs
-    depends_on:
-      - pihole
-      - jellyfin
-    networks:
-      - local_network
   pihole:
     container_name: pihole-${ENV_NAME}
     image: pihole/pihole:${PIHOLE_VERSION}
