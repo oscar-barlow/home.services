@@ -1,5 +1,19 @@
 #!/bin/bash
+echo "=== DNS Generation Script Starting ==="
+echo "Current time: $(date)"
+echo "Environment variables:"
+echo "  DOMAIN: '${DOMAIN}'"
+echo "  JELLYFIN_IP: '${JELLYFIN_IP}'"
+echo "  PIHOLE_IP: '${PIHOLE_IP}'"
+echo "  HELLO_WORLD_IP: '${HELLO_WORLD_IP}'"
+
+# Small delay to ensure environment is fully loaded
+sleep 2
+
 echo "Generating DNS configuration..."
+
+echo "Using template: /etc/dnsmasq.d/02-custom-dns.conf.template:"
+cat /etc/dnsmasq.d/02-custom-dns.conf.template
 
 sed -e "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" \
     -e "s/JELLYFIN_IP_PLACEHOLDER/${JELLYFIN_IP}/g" \
@@ -7,4 +21,6 @@ sed -e "s/DOMAIN_PLACEHOLDER/${DOMAIN}/g" \
     -e "s/HELLO_WORLD_IP_PLACEHOLDER/${HELLO_WORLD_IP}/g" \
     /etc/dnsmasq.d/02-custom-dns.conf.template > /etc/dnsmasq.d/02-custom-dns.conf
 
-echo "DNS configuration generated successfully."
+echo "Generated file contents:"
+cat /etc/dnsmasq.d/02-custom-dns.conf
+echo "=== DNS Generation Script Complete ==="
