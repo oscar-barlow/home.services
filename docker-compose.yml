@@ -43,7 +43,7 @@ services:
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
-      - './generate-dns-config.sh:/docker-entrypoint.d/generate-dns-config.sh'
+      - './generate-dns.sh:/docker-entrypoint.d/generate-dns.sh:ro'
       - './custom-dns.conf.template:/etc/dnsmasq.d/02-custom-dns.conf.template'
     cap_add:
       - NET_ADMIN  # Required for Pi-hole to function properly
