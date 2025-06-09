@@ -36,10 +36,10 @@ services:
       FTLCONF_local_ipv4: '${PIHOLE_IP}'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
-      HELLO_WORLD_IP: ${HELLO_WORLD_IP}
-      JELLYFIN_IP: ${JELLYFIN_IP}
-      PIHOLE_IP: ${PIHOLE_IP}
-      DOMAIN: ${DOMAIN}
+      HELLO_WORLD_IP: '${HELLO_WORLD_IP}'
+      JELLYFIN_IP: '${JELLYFIN_IP}'
+      PIHOLE_IP: '${PIHOLE_IP}'
+      DOMAIN: '${DOMAIN}'
     volumes:
       - './etc-pihole:/etc/pihole'
       - './etc-dnsmasq.d:/etc/dnsmasq.d'
