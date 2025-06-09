@@ -10,16 +10,11 @@ pihole/*/
 # plex
 plex/config/
 plex/media
-!plex/config/.gitkeep
-!plex/media/.gitkeep
 
 # jellyfin
 jellyfin/config/
 jellyfin/cache
 jellyfin/tmp
-!jellyfin/config/.gitkeep
-!jellyfin/cache/.gitkeep
-!jellyfin/tmp/.gitkeep
 
 # kavita
 kavita/*
@@ -27,3 +22,6 @@ kavita/*
 # dns
 dns/*
 !dns/example/
+
+# Allow all .gitkeep files
+!**/.gitkeep
