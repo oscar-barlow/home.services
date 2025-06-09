@@ -22,3 +22,7 @@ jellyfin/tmp
 
 # kavita
 kavita/*
+
+# dns
+dns/*
+!dns/example/
