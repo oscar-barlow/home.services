@@ -29,9 +29,14 @@ A collection of containerized services for a home network environment.
 
 Services use macvlan networking to get direct IP addresses on the local network. The network infrastructure is managed separately from application services.
 
+A systemd service (`homelab-shim.service`) creates a network shim that enables the host to communicate with containers on macvlan networks. This shim is essential because Docker's macvlan isolation normally prevents host-to-container communication.
+
 ### Network Management
 
 ```bash
+# Install systemd network shim service (one-time setup)
+make install-shim
+
 # Start network infrastructure (required before services)
 make network-up
 
@@ -44,6 +49,9 @@ See [network.md](network.md) for detailed network architecture and IP allocation
 ## Usage
 
 ```bash
+# One-time setup: Install systemd network shim
+make install-shim
+
 # Start network infrastructure first
 make network-up
 

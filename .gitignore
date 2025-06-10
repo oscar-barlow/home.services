@@ -12,12 +12,12 @@ plex/config/
 plex/media
 
 # jellyfin
-jellyfin/config/
-jellyfin/cache
-jellyfin/tmp
+jellyfin/prod/
+jellyfin/preprod/
 
 # kavita
-kavita/*
+kavita/prod/
+kavita/preprod/
 
 # dns
 dns/*
