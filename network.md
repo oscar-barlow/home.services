@@ -21,6 +21,35 @@ Infrastructure (reserved):        192.168.1.250 - 192.168.1.255
 
 The network infrastructure is managed separately from application services using macvlan networks that provide containers with direct IP addresses on the local network.
 
+### Systemd Network Shim
+
+A network "shim" is an intermediary layer that bridges communication between different network segments. In this homelab setup, the `homelab-shim.service` systemd unit creates a persistent macvlan interface that acts as a gateway between the host system and containerized services.
+
+**Why a shim is needed:**
+- Docker's macvlan networks isolate containers from the host by default
+- The host cannot directly communicate with containers on macvlan networks
+- The shim creates a bridge interface that enables host-to-container communication
+- Without the shim, the host would be unable to reach services running in containers
+
+The service runs four commands in sequence to establish this bridge:
+
+1. **Create macvlan interface**: `ip link add homelab-shim link eth0 type macvlan mode bridge`
+   - Creates a macvlan interface named "homelab-shim" linked to the host's eth0 interface
+   - Uses bridge mode to allow communication between macvlan interfaces
+
+2. **Assign IP address**: `ip addr add 192.168.1.254/32 dev homelab-shim`
+   - Assigns the reserved IP address 192.168.1.254 to the shim interface
+   - Uses /32 subnet mask (single host) - this IP acts as the host's presence on the container network
+
+3. **Bring interface up**: `ip link set homelab-shim up`
+   - Activates the network interface
+
+4. **Add routing**: `ip route add 192.168.1.192/26 dev homelab-shim`
+   - Routes the container subnet (192.168.1.192-255) through the shim interface
+   - Tells the host kernel how to reach container IPs
+
+The service automatically starts after network initialization and removes the interface on stop (`ExecStop=/sbin/ip link del homelab-shim`).
+
 ### Commands
 
 ```bash
