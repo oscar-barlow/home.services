@@ -3,18 +3,21 @@
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
 ## Build Commands
-- `docker-compose build` - Build all containers
-- `docker-compose up` - Start all services
-- `docker-compose up -d` - Start services in detached mode
-- `docker-compose down` - Stop all services
-- `make build` - Build containers using the Makefile
+- `docker compose -f docker-compose.application.yml build` - Build all containers
+- `docker compose -f docker-compose.application.yml up` - Start all services
+- `docker compose -f docker-compose.application.yml up -d` - Start services in detached mode
+- `docker compose -f docker-compose.application.yml down` - Stop all services
+- `make env-up` - Start services using the Makefile
+- `make env-down` - Stop services using the Makefile
+- `make network-up` - Create macvlan network infrastructure
+- `make network-down` - Remove macvlan network infrastructure
 
 ## Code Style Guidelines
 - YAML Indentation: Use 2 spaces
 - Docker Compose: Follow official naming conventions for services and volumes
 - Nginx Config: Follow standard nginx configuration patterns
 - Comments: Use descriptive comments for service configurations
-- Network Configuration: Use bridge networking with descriptive names
+- Network Configuration: Use macvlan networking managed via Makefile commands
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media
 

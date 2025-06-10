@@ -16,3 +16,30 @@ Container Ranges:
 Infrastructure (reserved):        192.168.1.250 - 192.168.1.255
 ├── macvlan shim:                192.168.1.254
 └── Future network tools:        192.168.1.250 - 192.168.1.253
+
+## Network Management
+
+The network infrastructure is managed separately from application services using macvlan networks that provide containers with direct IP addresses on the local network.
+
+### Commands
+
+```bash
+# Start network infrastructure (creates macvlan networks)
+make network-up
+
+# Stop network infrastructure  
+make network-down
+
+# Start services (requires network to be up first)
+make env-up [ENV=prod|preprod]
+
+# Stop services
+make env-down [ENV=prod|preprod]
+```
+
+### Architecture
+
+- **macvlan networks**: Separate networks for production and preprod environments
+- **IP pool separation**: Each environment has its own IP range to prevent conflicts
+- **Direct network access**: Containers get IPs directly on the home network
+- **Network isolation**: Production and preprod services are network-isolated

@@ -27,24 +27,53 @@ A collection of containerized services for a home network environment.
 
 ## Network
 
-All services use a bridge network named `local_network` except Jellyfin, which uses host networking for performance.
+Services use macvlan networking to get direct IP addresses on the local network. The network infrastructure is managed separately from application services.
+
+### Network Management
+
+```bash
+# Start network infrastructure (required before services)
+make network-up
+
+# Stop network infrastructure
+make network-down
+```
+
+See [network.md](network.md) for detailed network architecture and IP allocation.
 
 ## Usage
 
 ```bash
-# Start all services in detached mode
-docker-compose up -d
+# Start network infrastructure first
+make network-up
 
-# View logs
-docker-compose logs
+# Start all services for preprod environment (default)
+make env-up
 
-# Stop all services
-docker-compose down
+# Start all services for production environment
+make env-up ENV=prod
 
-# Rebuild containers
-docker-compose build
-# or
-make build
+# Stop services
+make env-down
+
+# Stop services for specific environment
+make env-down ENV=prod
+
+# Stop network infrastructure
+make network-down
+```
+
+### Service Management
+
+```bash
+# Start specific service
+make service-up SERVICE=jellyfin
+
+# Start specific service in production
+make service-up ENV=prod SERVICE=jellyfin
+
+# Stop specific service
+make service-down SERVICE=jellyfin
 ```
 
 ## Resilience
