@@ -25,10 +25,15 @@ env-down:
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
 
 network-up:
-	docker compose -f docker-compose.network.yml up -d
+	docker network create -d macvlan \
+		--subnet=192.168.1.0/24 \
+		--gateway=192.168.1.1 \
+		--ip-range=192.168.1.192/26 \
+		-o parent=eth0 \
+		homelab-macvlan || true
 
 network-down:
-	docker compose -f docker-compose.network.yml down
+	docker network rm homelab-macvlan || true
 
 # Service-specific commands
 service-up:
