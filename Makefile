@@ -1,4 +1,4 @@
-.PHONY: help env-up env-down service-up service-down
+.PHONY: help env-up env-down network-up network-down service-up service-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -8,6 +8,8 @@ help:
 	@echo "Available commands:"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
+	@echo "  network-up     - Start network services"
+	@echo "  network-down   - Stop network services"
 	@echo "  service-up     - Start specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
 	@echo ""
@@ -21,6 +23,12 @@ env-up:
 
 env-down:
 	docker compose --env-file env/.env.$(ENV) down
+
+network-up:
+	docker compose -f docker-compose.network.yml up -d
+
+network-down:
+	docker compose -f docker-compose.network.yml down
 
 # Service-specific commands
 service-up:
