@@ -34,6 +34,9 @@ A systemd service (`homelab-shim.service`) creates a network shim that enables t
 ### Network Management
 
 ```bash
+# Install systemd network shim service (one-time setup)
+make install-shim
+
 # Start network infrastructure (required before services)
 make network-up
 
@@ -46,6 +49,9 @@ See [network.md](network.md) for detailed network architecture and IP allocation
 ## Usage
 
 ```bash
+# One-time setup: Install systemd network shim
+make install-shim
+
 # Start network infrastructure first
 make network-up
 
