@@ -19,10 +19,10 @@ help:
 
 # Generic environment commands
 env-up:
-	docker compose --env-file env/.env.$(ENV) up -d
+	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d
 
 env-down:
-	docker compose --env-file env/.env.$(ENV) down
+	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
 
 network-up:
 	docker compose -f docker-compose.network.yml up -d
@@ -33,8 +33,8 @@ network-down:
 # Service-specific commands
 service-up:
 	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-up SERVICE=servicename"; exit 1; fi
-	docker compose --env-file env/.env.$(ENV) up -d $(SERVICE)
+	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d $(SERVICE)
 
 service-down:
 	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-down SERVICE=servicename"; exit 1; fi
-	docker compose --env-file env/.env.$(ENV) stop $(SERVICE)
+	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) stop $(SERVICE)

@@ -23,7 +23,7 @@ dns/
 ## How It Works
 
 1. **Container Networking**: Each service container gets a static IP on your LAN via macvlan (see [network.md](network.md))
-2. **DNS Mounting**: The `docker-compose.yml` file mounts the appropriate DNS config based on the `ENV_NAME` environment variable:
+2. **DNS Mounting**: The `docker-compose.application.yml` file mounts the appropriate DNS config based on the `ENV_NAME` environment variable:
    ```yaml
    - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
    ```
@@ -49,7 +49,7 @@ To add a new service to your DNS:
    ```
    Add: `address=/newservice.home/192.168.1.196`
 
-4. **Update docker-compose.yml** to assign the static IP:
+4. **Update docker-compose.application.yml** to assign the static IP:
    ```yaml
    newservice:
      networks:
@@ -59,7 +59,7 @@ To add a new service to your DNS:
 
 5. **Restart services**:
    ```bash
-   docker-compose restart pihole
+   make service-up SERVICE=pihole
    ```
 
 ### Configuration Format
