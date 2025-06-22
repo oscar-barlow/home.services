@@ -46,6 +46,9 @@ make network-down
 
 See [network.md](network.md) for detailed network architecture and IP allocation.
 
+### SSH Access
+See [ssh.md](ssh.md) for information about remote access to homelab nodes.
+
 ## Usage
 
 ```bash
