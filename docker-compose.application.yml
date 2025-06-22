@@ -36,15 +36,9 @@ services:
       - ./jellyfin/${ENV_NAME}/config:/config
       - ./jellyfin/${ENV_NAME}/cache:/cache
       - ./jellyfin/${ENV_NAME}/tmp:/tmp/jellyfin
-      - type: bind
-        source: /media/pi/Media/${ENV_NAME}/jellyfin/Music
-        target: /Music
-      - type: bind
-        source: /media/pi/Media/${ENV_NAME}/jellyfin/Movies
-        target: /Movies
-      - type: bind
-        source: /media/pi/Media/${ENV_NAME}/jellyfin/ChildrensMovies
-        target: /ChildrensMovies
+      - /media/pi/Media/${ENV_NAME}/jellyfin/Music:/Music
+      - /media/pi/Media/${ENV_NAME}/jellyfin/Movies:/Movies
+      - /media/pi/Media/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
     restart: 'unless-stopped'
     networks:
       homelab_macvlan:
