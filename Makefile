@@ -85,10 +85,14 @@ network-test-connectivity:
 	docker exec hello-world-prod ping -c 3 8.8.8.8
 	@echo "Testing host access from prod:"
 	docker exec hello-world-prod ping -c 3 192.168.1.204
+	@echo "Testing prod intra-environment communication (hello-world → pi-hole):"
+	docker exec hello-world-prod ping -c 3 pihole-prod
 	@echo "Testing internet access from preprod:"
 	docker exec hello-world-preprod ping -c 3 8.8.8.8
 	@echo "Testing router access from preprod:"
 	docker exec hello-world-preprod ping -c 3 192.168.1.1
+	@echo "Testing preprod intra-environment communication (hello-world → pi-hole):"
+	docker exec hello-world-preprod ping -c 3 pihole-preprod
 	@echo "✅ All connectivity tests passed!"
 
 network-test-isolation:

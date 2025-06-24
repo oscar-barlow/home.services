@@ -73,12 +73,6 @@ make network-test-isolation
 
 # Test allowed network connectivity
 make network-test-connectivity
-
-# Start services (requires network to be up first)
-make env-up [ENV=prod|preprod]
-
-# Stop services
-make env-down [ENV=prod|preprod]
 ```
 
 ### Architecture
@@ -138,10 +132,12 @@ make network-test-connectivity
 ### Test Requirements
 
 Both testing commands require:
-- Hello-world service running in both environments:
+- Hello-world and pi-hole services running in both environments:
   ```bash
   make service-up ENV=prod SERVICE=hello-world
+  make service-up ENV=prod SERVICE=pihole
   make service-up ENV=preprod SERVICE=hello-world
+  make service-up ENV=preprod SERVICE=pihole
   ```
 - Firewall rules active (`make firewall-setup`)
 
@@ -155,3 +151,4 @@ Both testing commands require:
 - Internet access (8.8.8.8) should work from both environments
 - Host access (192.168.1.204) should work from production
 - Router access (192.168.1.1) should work from preprod
+- Intra-environment communication should work (hello-world can reach pi-hole within same environment)
