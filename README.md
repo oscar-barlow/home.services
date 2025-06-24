@@ -49,6 +49,9 @@ See [network.md](network.md) for detailed network architecture and IP allocation
 ### SSH Access
 See [ssh.md](ssh.md) for information about remote access to homelab nodes.
 
+### Storage
+See [storage.md](storage.md) for storage architecture and permissions model.
+
 ## Usage
 
 ```bash
