@@ -1,4 +1,4 @@
-.PHONY: env-down env-up help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up firewall-setup firewall-remove firewall-status help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -6,28 +6,55 @@ SERVICE ?=
 
 help:
 	@echo "Available commands:"
-	@echo "  env-down       - Stop all services for ENV (default: preprod)"
-	@echo "  env-up         - Start all services for ENV (default: preprod)"
-	@echo "  install-shim   - Install systemd network shim service"
-	@echo "  network-down   - Stop network services"
-	@echo "  network-up     - Start network services"
-	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
-	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
-	@echo "  service-up     - Start specific SERVICE in ENV (requires SERVICE=name)"
-	@echo "  users-create   - Create prod/preprod users and groups on current node"
-	@echo "  users-remove   - Remove prod/preprod users and groups from current node"
-	@echo "  users-verify   - Verify user/group consistency on current node"
+	@echo "  env-down         - Stop all services for ENV (default: preprod)"
+	@echo "  env-up           - Start all services for ENV (default: preprod)"
+	@echo "  firewall-setup   - Set up environment isolation firewall rules"
+	@echo "  firewall-remove  - Remove environment isolation firewall rules"
+	@echo "  firewall-status  - Show current firewall status"
+	@echo "  install-shim     - Install systemd network shim service"
+	@echo "  network-down     - Stop network services"
+	@echo "  network-up       - Start network services"
+	@echo "  provision-node   - Complete node setup (users, shim, firewall, docker swarm)"
+	@echo "  service-down     - Stop specific SERVICE in ENV (requires SERVICE=name)"
+	@echo "  service-up       - Start specific SERVICE in ENV (requires SERVICE=name)"
+	@echo "  users-create     - Create prod/preprod users and groups on current node"
+	@echo "  users-remove     - Remove prod/preprod users and groups from current node"
+	@echo "  users-verify     - Verify user/group consistency on current node"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
 	@echo "  make users-create"
+	@echo "  make firewall-setup"
 
 env-down:
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
 
 env-up:
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d
+
+firewall-remove:
+	@echo "Removing environment isolation firewall rules..."
+	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
+	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
+	sudo iptables-save > /etc/iptables/rules.v4
+	@echo "Environment isolation rules removed!"
+
+firewall-setup:
+	@echo "Setting up environment isolation firewall rules..."
+	@echo "Adding rule: Block preprod → prod"
+	sudo iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+	@echo "Adding rule: Block prod → preprod"
+	sudo iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+	@echo "Saving iptables rules..."
+	sudo iptables-save > /etc/iptables/rules.v4
+	@echo "Current iptables FORWARD rules:"
+	sudo iptables -L FORWARD -n --line-numbers | head -10
+	@echo "Environment isolation rules installed successfully!"
+
+firewall-status:
+	@echo "Current FORWARD chain rules:"
+	sudo iptables -L FORWARD -n --line-numbers
 
 install-shim:
 	@echo "Installing homelab network shim service..."
@@ -54,8 +81,11 @@ provision-node:
 	@$(MAKE) users-create
 	@echo "Step 2: Installing systemd shim..."
 	@$(MAKE) install-shim
-	@echo "Step 3: Verifying setup..."
+	@echo "Step 3: Setting up environment isolation firewall..."
+	@$(MAKE) firewall-setup
+	@echo "Step 4: Verifying setup..."
 	@$(MAKE) users-verify
+	@$(MAKE) firewall-status
 	@echo "Node provisioning complete!"
 	@echo "TODO: Add docker swarm join command when available"
 

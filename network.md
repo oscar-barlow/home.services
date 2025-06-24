@@ -59,6 +59,15 @@ make network-up
 # Stop network infrastructure  
 make network-down
 
+# Set up environment isolation firewall rules
+make firewall-setup
+
+# Remove environment isolation firewall rules
+make firewall-remove
+
+# Show current firewall status
+make firewall-status
+
 # Start services (requires network to be up first)
 make env-up [ENV=prod|preprod]
 
@@ -72,3 +81,36 @@ make env-down [ENV=prod|preprod]
 - **IP pool separation**: Each environment has its own IP range to prevent conflicts
 - **Direct network access**: Containers get IPs directly on the home network
 - **Network isolation**: Production and preprod services are network-isolated
+
+## Environment Isolation
+
+### Firewall Rules
+
+The homelab implements network-level isolation between production and preprod environments using iptables firewall rules. This prevents cross-environment communication while maintaining internet access and host communication.
+
+### Isolation Implementation
+
+- **Production containers**: 192.168.1.192/27 (192.168.1.192-223)
+- **Preprod containers**: 192.168.1.224/27 (192.168.1.224-249)
+- **Infrastructure**: 192.168.1.250-255 (shim, future tools)
+
+### Firewall Rules Applied
+
+```bash
+# Block preprod → prod communication
+iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+
+# Block prod → preprod communication  
+iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+```
+
+### Benefits
+
+- **Environment Isolation**: Prevents accidental prod→preprod data leaks
+- **Blast Radius Containment**: Limits impact of preprod experiments
+- **Network Segmentation**: Clear separation of concerns
+- **Fail-Safe Operation**: Rules applied before containers start
+
+### Persistence
+
+Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` for persistence across reboots.

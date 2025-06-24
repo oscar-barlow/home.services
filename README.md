@@ -42,6 +42,15 @@ make network-up
 
 # Stop network infrastructure
 make network-down
+
+# Set up environment isolation firewall rules
+make firewall-setup
+
+# Remove environment isolation firewall rules
+make firewall-remove
+
+# Show current firewall status
+make firewall-status
 ```
 
 See [network.md](network.md) for detailed network architecture and IP allocation.
@@ -54,12 +63,24 @@ See [storage.md](storage.md) for storage architecture and permissions model.
 
 ## Usage
 
+### Node Provisioning
+
+```bash
+# Complete node setup (users, shim, firewall)
+make provision-node
+```
+
+### Manual Service Management
+
 ```bash
 # One-time setup: Install systemd network shim
 make install-shim
 
 # Start network infrastructure first
 make network-up
+
+# Set up environment isolation firewall rules
+make firewall-setup
 
 # Start all services for preprod environment (default)
 make env-up
