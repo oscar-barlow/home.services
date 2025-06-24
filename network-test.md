@@ -32,7 +32,7 @@ sudo systemctl start homelab-shim.service
 
 Verify VEPA mode is active:
 ```bash
-ip link show homelab-shim
+i'm 
 ```
 
 ### Step 3: Set Up Firewall Rules

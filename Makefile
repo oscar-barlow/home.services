@@ -108,9 +108,9 @@ network-test-connectivity:
 network-test-isolation:
 	@echo "🔒 Testing environment isolation (should timeout and fail)..."
 	@echo "🚫 Testing prod → preprod (should be BLOCKED):"
-	timeout 5 docker exec hello-world-prod ping -c 1 192.168.1.226 || echo "✅ Prod→Preprod correctly blocked"
+	timeout 5 docker exec hello-world-prod ping -c 1 192.168.1.224 || echo "✅ Prod→Preprod correctly blocked"
 	@echo "🚫 Testing preprod → prod (should be BLOCKED):"
-	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.194 || echo "✅ Preprod→Prod correctly blocked"
+	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.192 || echo "✅ Preprod→Prod correctly blocked"
 	@echo "✅ Environment isolation working correctly!"
 
 provision-node:
