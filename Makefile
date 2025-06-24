@@ -37,33 +37,43 @@ env-up:
 
 firewall-remove:
 	@echo "Removing environment isolation firewall rules..."
-	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
-	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
+	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "iptables preprod→prod rule not found"
+	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "iptables prod→preprod rule not found"
 	sudo iptables -D DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "DOCKER-USER preprod→prod rule not found"
 	sudo iptables -D DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "DOCKER-USER prod→preprod rule not found"
+	sudo ebtables -D FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP 2>/dev/null || echo "ebtables preprod→prod rule not found"
+	sudo ebtables -D FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP 2>/dev/null || echo "ebtables prod→preprod rule not found"
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
+	sudo ebtables-save > /etc/ebtables.rules 2>/dev/null || true
 	@echo "Environment isolation rules removed!"
 
 firewall-setup:
 	@echo "Setting up environment isolation firewall rules..."
-	@echo "Removing any existing rules first..."
+	@echo "Removing any existing iptables rules first..."
 	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || true
 	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || true
-	@echo "Adding rule at top of FORWARD chain: Block preprod → prod"
-	sudo iptables -I FORWARD 1 -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
-	@echo "Adding rule at top of FORWARD chain: Block prod → preprod"
-	sudo iptables -I FORWARD 1 -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
-	@echo "Saving iptables rules..."
+	@echo "Removing any existing ebtables rules first..."
+	sudo ebtables -D FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP 2>/dev/null || true
+	sudo ebtables -D FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP 2>/dev/null || true
+	@echo "Adding ebtables rule: Block preprod → prod"
+	sudo ebtables -A FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP
+	@echo "Adding ebtables rule: Block prod → preprod"
+	sudo ebtables -A FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP
+	@echo "Saving firewall rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-	@echo "Current iptables FORWARD rules:"
-	sudo iptables -L FORWARD -n --line-numbers | head -10
+	sudo ebtables-save > /etc/ebtables.rules 2>/dev/null || true
+	@echo "Current ebtables FORWARD rules:"
+	sudo ebtables -L FORWARD --Ln
 	@echo "Environment isolation rules installed successfully!"
 
 firewall-status:
-	@echo "Current FORWARD chain rules:"
-	sudo iptables -L FORWARD -n --line-numbers | head -15
+	@echo "Current ebtables FORWARD rules:"
+	sudo ebtables -L FORWARD --Ln
+	@echo ""
+	@echo "Current iptables FORWARD rules:"
+	sudo iptables -L FORWARD -n --line-numbers | head -10
 
 install-shim:
 	@echo "Installing homelab network shim service..."

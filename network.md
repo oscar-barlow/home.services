@@ -86,7 +86,7 @@ make network-test-connectivity
 
 ### Firewall Rules
 
-The homelab implements network-level isolation between production and preprod environments using iptables firewall rules. This prevents cross-environment communication while maintaining internet access and host communication.
+The homelab implements network-level isolation between production and preprod environments using ebtables firewall rules at the bridge layer. Since containers use macvlan networking in bridge mode, traffic flows at layer-2 and requires ebtables filtering rather than iptables. This prevents cross-environment communication while maintaining internet access and host communication.
 
 ### Isolation Implementation
 
@@ -97,11 +97,11 @@ The homelab implements network-level isolation between production and preprod en
 ### Firewall Rules Applied
 
 ```bash
-# Block preprod → prod communication
-iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+# Block preprod → prod communication at bridge layer
+ebtables -A FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP
 
-# Block prod → preprod communication  
-iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+# Block prod → preprod communication at bridge layer
+ebtables -A FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP
 ```
 
 ### Benefits
@@ -110,10 +110,11 @@ iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 - **Blast Radius Containment**: Limits impact of preprod experiments
 - **Network Segmentation**: Clear separation of concerns
 - **Fail-Safe Operation**: Rules applied before containers start
+- **Layer-2 Filtering**: Works with macvlan bridge mode by filtering at the bridge level
 
 ### Persistence
 
-Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` for persistence across reboots.
+Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` and `/etc/ebtables.rules` for persistence across reboots.
 
 ## Network Testing
 
