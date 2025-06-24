@@ -41,8 +41,8 @@ firewall-remove:
 	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "iptables prod→preprod rule not found"
 	sudo iptables -D DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "DOCKER-USER preprod→prod rule not found"
 	sudo iptables -D DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "DOCKER-USER prod→preprod rule not found"
-	sudo ebtables -D FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP 2>/dev/null || echo "ebtables preprod→prod rule not found"
-	sudo ebtables -D FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP 2>/dev/null || echo "ebtables prod→preprod rule not found"
+	sudo ebtables -D FORWARD -p IPv4 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP 2>/dev/null || echo "ebtables preprod→prod rule not found"
+	sudo ebtables -D FORWARD -p IPv4 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP 2>/dev/null || echo "ebtables prod→preprod rule not found"
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 	sudo ebtables-save > /etc/ebtables.rules 2>/dev/null || true
@@ -54,12 +54,12 @@ firewall-setup:
 	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || true
 	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || true
 	@echo "Removing any existing ebtables rules first..."
-	sudo ebtables -D FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP 2>/dev/null || true
-	sudo ebtables -D FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP 2>/dev/null || true
+	sudo ebtables -D FORWARD -p IPv4 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP 2>/dev/null || true
+	sudo ebtables -D FORWARD -p IPv4 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP 2>/dev/null || true
 	@echo "Adding ebtables rule: Block preprod → prod"
-	sudo ebtables -A FORWARD --ip-source 192.168.1.224/27 --ip-destination 192.168.1.192/27 -j DROP
+	sudo ebtables -A FORWARD -p IPv4 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP
 	@echo "Adding ebtables rule: Block prod → preprod"
-	sudo ebtables -A FORWARD --ip-source 192.168.1.192/27 --ip-destination 192.168.1.224/27 -j DROP
+	sudo ebtables -A FORWARD -p IPv4 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP
 	@echo "Saving firewall rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
