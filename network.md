@@ -98,10 +98,10 @@ The homelab implements network-level isolation between production and preprod en
 
 ```bash
 # Block preprod → prod communication at bridge layer
-ebtables -A FORWARD -p IPv4 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP
+ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP
 
 # Block prod → preprod communication at bridge layer
-ebtables -A FORWARD -p IPv4 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP
+ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP
 ```
 
 ### Benefits
