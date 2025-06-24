@@ -33,9 +33,9 @@ A network "shim" is an intermediary layer that bridges communication between dif
 
 The service runs four commands in sequence to establish this bridge:
 
-1. **Create macvlan interface**: `ip link add homelab-shim link eth0 type macvlan mode bridge`
+1. **Create macvlan interface**: `ip link add homelab-shim link eth0 type macvlan mode vepa`
    - Creates a macvlan interface named "homelab-shim" linked to the host's eth0 interface
-   - Uses bridge mode to allow communication between macvlan interfaces
+   - Uses VEPA mode to force traffic through external switch for proper filtering
 
 2. **Assign IP address**: `ip addr add 192.168.1.254/32 dev homelab-shim`
    - Assigns the reserved IP address 192.168.1.254 to the shim interface
@@ -86,7 +86,7 @@ make network-test-connectivity
 
 ### Firewall Rules
 
-The homelab implements network-level isolation between production and preprod environments using ebtables firewall rules at the bridge layer. Since containers use macvlan networking in bridge mode, traffic flows at layer-2 and requires ebtables filtering rather than iptables. This prevents cross-environment communication while maintaining internet access and host communication.
+The homelab implements network-level isolation between production and preprod environments using iptables firewall rules. Containers use macvlan networking in VEPA mode, which forces traffic through the external switch and back through the routing stack where iptables can filter it. This prevents cross-environment communication while maintaining internet access, host communication, and intra-environment communication.
 
 ### Isolation Implementation
 
@@ -97,11 +97,11 @@ The homelab implements network-level isolation between production and preprod en
 ### Firewall Rules Applied
 
 ```bash
-# Block preprod → prod communication at bridge layer
-ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP
+# Block preprod → prod communication
+iptables -I FORWARD 1 -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
 
-# Block prod → preprod communication at bridge layer
-ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP
+# Block prod → preprod communication
+iptables -I FORWARD 1 -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 ```
 
 ### Benefits
@@ -110,11 +110,11 @@ ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/2
 - **Blast Radius Containment**: Limits impact of preprod experiments
 - **Network Segmentation**: Clear separation of concerns
 - **Fail-Safe Operation**: Rules applied before containers start
-- **Layer-2 Filtering**: Works with macvlan bridge mode by filtering at the bridge level
+- **VEPA Mode Filtering**: Works with macvlan VEPA mode by filtering routed traffic through iptables
 
 ### Persistence
 
-Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` and `/etc/ebtables.rules` for persistence across reboots.
+Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` for persistence across reboots.
 
 ## Network Testing
 

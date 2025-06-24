@@ -50,28 +50,23 @@ firewall-remove:
 
 firewall-setup:
 	@echo "Setting up environment isolation firewall rules..."
-	@echo "Removing any existing iptables rules first..."
+	@echo "Removing any existing rules first..."
 	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || true
 	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || true
-	@echo "Removing any existing ebtables rules first..."
 	sudo ebtables -D FORWARD -p 0x0800 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP 2>/dev/null || true
 	sudo ebtables -D FORWARD -p 0x0800 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP 2>/dev/null || true
-	@echo "Adding ebtables rule: Block preprod → prod"
-	sudo ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.224/27 --ip-dst 192.168.1.192/27 -j DROP
-	@echo "Adding ebtables rule: Block prod → preprod"
-	sudo ebtables -A FORWARD -p 0x0800 --ip-src 192.168.1.192/27 --ip-dst 192.168.1.224/27 -j DROP
+	@echo "Adding iptables rule: Block preprod → prod"
+	sudo iptables -I FORWARD 1 -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+	@echo "Adding iptables rule: Block prod → preprod"
+	sudo iptables -I FORWARD 1 -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 	@echo "Saving firewall rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-	sudo ebtables-save > /etc/ebtables.rules 2>/dev/null || true
-	@echo "Current ebtables FORWARD rules:"
-	sudo ebtables -L FORWARD --Ln
+	@echo "Current iptables FORWARD rules:"
+	sudo iptables -L FORWARD -n --line-numbers | head -10
 	@echo "Environment isolation rules installed successfully!"
 
 firewall-status:
-	@echo "Current ebtables FORWARD rules:"
-	sudo ebtables -L FORWARD --Ln
-	@echo ""
 	@echo "Current iptables FORWARD rules:"
 	sudo iptables -L FORWARD -n --line-numbers | head -10
 
