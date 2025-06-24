@@ -80,26 +80,26 @@ network-up:
 		homelab-macvlan || true
 
 network-test-connectivity:
-	@echo "Testing allowed network connectivity..."
-	@echo "Testing internet access from prod:"
+	@echo "🧪 Testing allowed network connectivity..."
+	@echo "🌐 Testing internet access from prod:"
 	docker exec hello-world-prod ping -c 3 8.8.8.8
-	@echo "Testing host access from prod:"
+	@echo "🏠 Testing host access from prod:"
 	docker exec hello-world-prod ping -c 3 192.168.1.204
-	@echo "Testing prod intra-environment communication (hello-world → pi-hole):"
+	@echo "🔗 Testing prod intra-environment communication (hello-world → pi-hole):"
 	docker exec hello-world-prod ping -c 3 pihole-prod
-	@echo "Testing internet access from preprod:"
+	@echo "🌐 Testing internet access from preprod:"
 	docker exec hello-world-preprod ping -c 3 8.8.8.8
-	@echo "Testing router access from preprod:"
+	@echo "🔌 Testing router access from preprod:"
 	docker exec hello-world-preprod ping -c 3 192.168.1.1
-	@echo "Testing preprod intra-environment communication (hello-world → pi-hole):"
+	@echo "🔗 Testing preprod intra-environment communication (hello-world → pi-hole):"
 	docker exec hello-world-preprod ping -c 3 pihole-preprod
 	@echo "✅ All connectivity tests passed!"
 
 network-test-isolation:
-	@echo "Testing environment isolation (should timeout and fail)..."
-	@echo "Testing prod → preprod (should be BLOCKED):"
+	@echo "🔒 Testing environment isolation (should timeout and fail)..."
+	@echo "🚫 Testing prod → preprod (should be BLOCKED):"
 	timeout 5 docker exec hello-world-prod ping -c 1 192.168.1.226 || echo "✅ Prod→Preprod correctly blocked"
-	@echo "Testing preprod → prod (should be BLOCKED):"
+	@echo "🚫 Testing preprod → prod (should be BLOCKED):"
 	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.202 || echo "✅ Preprod→Prod correctly blocked"
 	@echo "✅ Environment isolation working correctly!"
 
@@ -146,11 +146,11 @@ users-remove:
 	@echo "Users and groups removed successfully!"
 
 users-verify:
-	@echo "Verifying user/group consistency on current node..."
-	@echo "Production environment (UID/GID 5001):"
+	@echo "🔍 Verifying user/group consistency on current node..."
+	@echo "🏭 Production environment (UID/GID 5001):"
 	@id prod-user 2>/dev/null || echo "  ERROR: prod-user not found"
 	@getent group prod 2>/dev/null || echo "  ERROR: prod group not found"
-	@echo "Preprod environment (UID/GID 6001):"
+	@echo "🧪 Preprod environment (UID/GID 6001):"
 	@id preprod-user 2>/dev/null || echo "  ERROR: preprod-user not found"
 	@getent group preprod 2>/dev/null || echo "  ERROR: preprod group not found"
-	@echo "Verification complete!"
+	@echo "✅ Verification complete!"
