@@ -37,8 +37,8 @@ env-up:
 
 firewall-remove:
 	@echo "Removing environment isolation firewall rules..."
-	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
-	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
+	sudo iptables -D DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
+	sudo iptables -D DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 	@echo "Environment isolation rules removed!"
@@ -46,19 +46,19 @@ firewall-remove:
 firewall-setup:
 	@echo "Setting up environment isolation firewall rules..."
 	@echo "Adding rule: Block preprod → prod"
-	sudo iptables -C FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || sudo iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+	sudo iptables -C DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || sudo iptables -I DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
 	@echo "Adding rule: Block prod → preprod"
-	sudo iptables -C FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || sudo iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+	sudo iptables -C DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || sudo iptables -I DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 	@echo "Saving iptables rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-	@echo "Current iptables FORWARD rules:"
-	sudo iptables -L FORWARD -n --line-numbers | head -10
+	@echo "Current iptables DOCKER-USER rules:"
+	sudo iptables -L DOCKER-USER -n --line-numbers
 	@echo "Environment isolation rules installed successfully!"
 
 firewall-status:
-	@echo "Current FORWARD chain rules:"
-	sudo iptables -L FORWARD -n --line-numbers
+	@echo "Current DOCKER-USER chain rules:"
+	sudo iptables -L DOCKER-USER -n --line-numbers
 
 install-shim:
 	@echo "Installing homelab network shim service..."
@@ -100,7 +100,7 @@ network-test-isolation:
 	@echo "🚫 Testing prod → preprod (should be BLOCKED):"
 	timeout 5 docker exec hello-world-prod ping -c 1 192.168.1.226 || echo "✅ Prod→Preprod correctly blocked"
 	@echo "🚫 Testing preprod → prod (should be BLOCKED):"
-	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.202 || echo "✅ Preprod→Prod correctly blocked"
+	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.194 || echo "✅ Preprod→Prod correctly blocked"
 	@echo "✅ Environment isolation working correctly!"
 
 provision-node:
