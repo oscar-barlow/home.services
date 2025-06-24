@@ -37,28 +37,33 @@ env-up:
 
 firewall-remove:
 	@echo "Removing environment isolation firewall rules..."
-	sudo iptables -D DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
-	sudo iptables -D DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
+	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "Preprod→prod rule not found"
+	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "Prod→preprod rule not found"
+	sudo iptables -D DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || echo "DOCKER-USER preprod→prod rule not found"
+	sudo iptables -D DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || echo "DOCKER-USER prod→preprod rule not found"
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
 	@echo "Environment isolation rules removed!"
 
 firewall-setup:
 	@echo "Setting up environment isolation firewall rules..."
-	@echo "Adding rule: Block preprod → prod"
-	sudo iptables -C DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || sudo iptables -I DOCKER-USER -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
-	@echo "Adding rule: Block prod → preprod"
-	sudo iptables -C DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || sudo iptables -I DOCKER-USER -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+	@echo "Removing any existing rules first..."
+	sudo iptables -D FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || true
+	sudo iptables -D FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || true
+	@echo "Adding rule at top of FORWARD chain: Block preprod → prod"
+	sudo iptables -I FORWARD 1 -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+	@echo "Adding rule at top of FORWARD chain: Block prod → preprod"
+	sudo iptables -I FORWARD 1 -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 	@echo "Saving iptables rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
-	@echo "Current iptables DOCKER-USER rules:"
-	sudo iptables -L DOCKER-USER -n --line-numbers
+	@echo "Current iptables FORWARD rules:"
+	sudo iptables -L FORWARD -n --line-numbers | head -10
 	@echo "Environment isolation rules installed successfully!"
 
 firewall-status:
-	@echo "Current DOCKER-USER chain rules:"
-	sudo iptables -L DOCKER-USER -n --line-numbers
+	@echo "Current FORWARD chain rules:"
+	sudo iptables -L FORWARD -n --line-numbers | head -15
 
 install-shim:
 	@echo "Installing homelab network shim service..."
