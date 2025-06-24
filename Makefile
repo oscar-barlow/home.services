@@ -65,7 +65,7 @@ install-shim:
 	sudo cp homelab-shim.service /etc/systemd/system/
 	sudo systemctl daemon-reload
 	sudo systemctl enable homelab-shim.service
-	sudo systemctl start homelab-shim.service
+	sudo systemctl start homelab-shim.service || sudo systemctl restart homelab-shim.service
 	@echo "Service installed, enabled, and started."
 
 network-down:
