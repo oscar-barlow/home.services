@@ -46,9 +46,9 @@ firewall-remove:
 firewall-setup:
 	@echo "Setting up environment isolation firewall rules..."
 	@echo "Adding rule: Block preprod → prod"
-	sudo iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
+	sudo iptables -C FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP 2>/dev/null || sudo iptables -I FORWARD -s 192.168.1.224/27 -d 192.168.1.192/27 -j DROP
 	@echo "Adding rule: Block prod → preprod"
-	sudo iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
+	sudo iptables -C FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP 2>/dev/null || sudo iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 	@echo "Saving iptables rules..."
 	sudo mkdir -p /etc/iptables
 	sudo iptables-save | sudo tee /etc/iptables/rules.v4 > /dev/null
