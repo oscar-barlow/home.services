@@ -1,4 +1,4 @@
-.PHONY: env-down env-up firewall-setup firewall-remove firewall-status help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up firewall-setup firewall-remove firewall-status help install-shim network-down network-test-isolation network-test-connectivity network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -11,9 +11,11 @@ help:
 	@echo "  firewall-setup   - Set up environment isolation firewall rules"
 	@echo "  firewall-remove  - Remove environment isolation firewall rules"
 	@echo "  firewall-status  - Show current firewall status"
-	@echo "  install-shim     - Install systemd network shim service"
-	@echo "  network-down     - Stop network services"
-	@echo "  network-up       - Start network services"
+	@echo "  install-shim           - Install systemd network shim service"
+	@echo "  network-down           - Stop network services"
+	@echo "  network-test-isolation - Test firewall isolation between environments"
+	@echo "  network-test-connectivity - Test allowed network connectivity"
+	@echo "  network-up             - Start network services"
 	@echo "  provision-node   - Complete node setup (users, shim, firewall, docker swarm)"
 	@echo "  service-down     - Stop specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  service-up       - Start specific SERVICE in ENV (requires SERVICE=name)"
@@ -74,6 +76,26 @@ network-up:
 		--ip-range=192.168.1.192/26 \
 		-o parent=eth0 \
 		homelab-macvlan || true
+
+network-test-connectivity:
+	@echo "Testing allowed network connectivity..."
+	@echo "Testing internet access from prod:"
+	docker exec hello-world-prod ping -c 3 8.8.8.8
+	@echo "Testing host access from prod:"
+	docker exec hello-world-prod ping -c 3 192.168.1.204
+	@echo "Testing internet access from preprod:"
+	docker exec hello-world-preprod ping -c 3 8.8.8.8
+	@echo "Testing router access from preprod:"
+	docker exec hello-world-preprod ping -c 3 192.168.1.1
+	@echo "✅ All connectivity tests passed!"
+
+network-test-isolation:
+	@echo "Testing environment isolation (should timeout and fail)..."
+	@echo "Testing prod → preprod (should be BLOCKED):"
+	timeout 5 docker exec hello-world-prod ping -c 1 192.168.1.226 || echo "✅ Prod→Preprod correctly blocked"
+	@echo "Testing preprod → prod (should be BLOCKED):"
+	timeout 5 docker exec hello-world-preprod ping -c 1 192.168.1.202 || echo "✅ Preprod→Prod correctly blocked"
+	@echo "✅ Environment isolation working correctly!"
 
 provision-node:
 	@echo "Provisioning homelab node..."

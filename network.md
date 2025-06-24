@@ -68,6 +68,12 @@ make firewall-remove
 # Show current firewall status
 make firewall-status
 
+# Test firewall isolation between environments
+make network-test-isolation
+
+# Test allowed network connectivity
+make network-test-connectivity
+
 # Start services (requires network to be up first)
 make env-up [ENV=prod|preprod]
 
@@ -114,3 +120,38 @@ iptables -I FORWARD -s 192.168.1.192/27 -d 192.168.1.224/27 -j DROP
 ### Persistence
 
 Firewall rules are automatically applied during node provisioning (`make provision-node`) and can be managed independently using the firewall commands. Rules are saved to `/etc/iptables/rules.v4` for persistence across reboots.
+
+## Network Testing
+
+### Testing Environment Isolation
+
+Use the network testing commands to verify that the firewall isolation is working correctly:
+
+```bash
+# Test that cross-environment communication is blocked
+make network-test-isolation
+
+# Test that allowed communication still works
+make network-test-connectivity
+```
+
+### Test Requirements
+
+Both testing commands require:
+- Hello-world service running in both environments:
+  ```bash
+  make service-up ENV=prod SERVICE=hello-world
+  make service-up ENV=preprod SERVICE=hello-world
+  ```
+- Firewall rules active (`make firewall-setup`)
+
+### Expected Results
+
+**Isolation Test** (`network-test-isolation`):
+- Production → Preprod communication should timeout and be blocked
+- Preprod → Production communication should timeout and be blocked
+
+**Connectivity Test** (`network-test-connectivity`):
+- Internet access (8.8.8.8) should work from both environments
+- Host access (192.168.1.204) should work from production
+- Router access (192.168.1.1) should work from preprod

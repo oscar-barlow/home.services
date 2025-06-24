@@ -51,6 +51,12 @@ make firewall-remove
 
 # Show current firewall status
 make firewall-status
+
+# Test firewall isolation between environments
+make network-test-isolation
+
+# Test allowed network connectivity
+make network-test-connectivity
 ```
 
 See [network.md](network.md) for detailed network architecture and IP allocation.
