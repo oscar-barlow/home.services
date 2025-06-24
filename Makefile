@@ -107,13 +107,17 @@ provision-node:
 	@echo "Provisioning homelab node..."
 	@echo "Step 1: Creating users and groups..."
 	@$(MAKE) users-create
+	@$(MAKE) users-verify
 	@echo "Step 2: Installing systemd shim..."
 	@$(MAKE) install-shim
 	@echo "Step 3: Setting up environment isolation firewall..."
 	@$(MAKE) firewall-setup
-	@echo "Step 4: Verifying setup..."
-	@$(MAKE) users-verify
 	@$(MAKE) firewall-status
+	@echo "Step 4: Testing network configuration..."
+	@echo "ℹ️  Network tests require hello-world and pihole services to be running in both environments"
+	@echo "ℹ️  Run: make service-up ENV=prod SERVICE=hello-world && make service-up ENV=prod SERVICE=pihole"
+	@echo "ℹ️  Run: make service-up ENV=preprod SERVICE=hello-world && make service-up ENV=preprod SERVICE=pihole"
+	@echo "ℹ️  Then run: make network-test-isolation && make network-test-connectivity"
 	@echo "Node provisioning complete!"
 	@echo "TODO: Add docker swarm join command when available"
 
