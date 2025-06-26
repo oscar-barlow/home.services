@@ -56,6 +56,22 @@ services:
 ```
 
 
+## Mount Point Conventions
+
+The system follows consistent mount point conventions based on storage type:
+
+- **Physical media directly attached to a node**: Always mounted at `/media`
+  - Examples: `/media/usb-drive`, `/media/pi/Data-0`
+  - Used for local storage devices, USB drives, directly attached disks
+
+- **Logical volumes or network-exposed media**: Always mounted at `/mnt`
+  - Examples: `/mnt/Data-1`, `/mnt/nfs-share`, `/mnt/pi-remote`
+  - Used for NFS mounts, LVM logical volumes, network storage
+
+- **Unified storage systems**: Mounted at `/srv`
+  - Examples: `/srv/data` (LVM-backed unified storage)
+  - Used for system-wide services and consolidated storage pools
+
 ## Storage Export
 
 For exporting storage volumes via NFS:

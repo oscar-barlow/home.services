@@ -8,8 +8,8 @@ help:
 	@echo "Available commands:"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
-	@echo "  export-storage - Export storage volume via NFS (requires VOL and IP)"
-	@echo "  import-storage - Import storage volume via NFS (requires VOL and IP)"
+	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
+	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
 	@echo "  install-shim   - Install systemd network shim service"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
@@ -25,8 +25,8 @@ help:
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
-	@echo "  make export-storage VOL=1 IP=192.168.1.100"
-	@echo "  make import-storage VOL=1 IP=192.168.1.100"
+	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
+	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make users-create"
@@ -39,59 +39,60 @@ env-up:
 
 export-storage:
 	@echo "📦 Starting NFS storage export process..."
-	@if [ -z "$(VOL)" ]; then echo "❌ Error: VOL variable is required. Use: make export-storage VOL=1 IP=192.168.1.100"; exit 1; fi
-	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make export-storage VOL=1 IP=192.168.1.100"; exit 1; fi
-	@echo "🔍 Checking if Data-$(VOL) is mounted at /mnt/Data-$(VOL)..."
-	@if ! mountpoint -q /mnt/Data-$(VOL); then echo "❌ Error: /mnt/Data-$(VOL) is not mounted. Please mount the disk first."; exit 1; fi
-	@echo "✅ Mount point verified: /mnt/Data-$(VOL)"
+	@if [ -z "$(LOCAL_PATH)" ]; then echo "❌ Error: LOCAL_PATH variable is required. Use: make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"; exit 1; fi
+	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"; exit 1; fi
+	@echo "🔍 Checking if $(LOCAL_PATH) exists and is accessible..."
+	@if [ ! -d "$(LOCAL_PATH)" ]; then echo "❌ Error: $(LOCAL_PATH) does not exist. Please create the directory first."; exit 1; fi
+	@echo "✅ Path verified: $(LOCAL_PATH)"
 	@echo "🔧 Checking if export already exists..."
-	@if grep -q "^/mnt/Data-$(VOL) $(IP)/32" /etc/exports 2>/dev/null; then \
-		echo "✅ Export already exists for /mnt/Data-$(VOL) to $(IP)/32"; \
+	@if grep -q "^$(LOCAL_PATH) $(IP)/32" /etc/exports 2>/dev/null; then \
+		echo "✅ Export already exists for $(LOCAL_PATH) to $(IP)/32"; \
 	else \
-		echo "📝 Adding new NFS export: /mnt/Data-$(VOL) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)"; \
-		echo '/mnt/Data-$(VOL) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports; \
+		echo "📝 Adding new NFS export: $(LOCAL_PATH) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)"; \
+		echo '$(LOCAL_PATH) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports; \
 	fi
 	@echo "🔄 Refreshing NFS exports..."
 	sudo exportfs -ra
 	@echo "🚀 Enabling and starting NFS kernel server..."
 	sudo systemctl enable nfs-kernel-server
 	sudo systemctl start nfs-kernel-server
-	@echo "✅ NFS export complete! Storage volume Data-$(VOL) is now accessible at $(IP):32"
+	@echo "✅ NFS export complete! Storage at $(LOCAL_PATH) is now accessible from $(IP)"
 	@echo "📋 Current exports:"
-	@sudo exportfs -v | grep "Data-$(VOL)" || echo "   No matching exports found"
+	@sudo exportfs -v | grep "$(LOCAL_PATH)" || echo "   No matching exports found"
 
 import-storage:
 	@echo "📦 Starting NFS storage import process..."
-	@if [ -z "$(VOL)" ]; then echo "❌ Error: VOL variable is required. Use: make import-storage VOL=1 IP=192.168.1.100"; exit 1; fi
-	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make import-storage VOL=1 IP=192.168.1.100"; exit 1; fi
-	@echo "🔍 Checking if /mnt/Data-$(VOL) is already mounted..."
-	@if mountpoint -q /mnt/Data-$(VOL); then \
-		echo "✅ Storage volume Data-$(VOL) is already mounted at /mnt/Data-$(VOL)"; \
+	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"; exit 1; fi
+	@if [ -z "$(REMOTE_PATH)" ]; then echo "❌ Error: REMOTE_PATH variable is required. Use: make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"; exit 1; fi
+	@if [ -z "$(LOCAL_PATH)" ]; then echo "❌ Error: LOCAL_PATH variable is required. Use: make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"; exit 1; fi
+	@echo "🔍 Checking if $(LOCAL_PATH) is already mounted..."
+	@if mountpoint -q $(LOCAL_PATH); then \
+		echo "✅ Storage is already mounted at $(LOCAL_PATH)"; \
 		echo "📋 Current mount details:"; \
-		mount | grep "Data-$(VOL)" || echo "   No matching mount found"; \
+		mount | grep "$(LOCAL_PATH)" || echo "   No matching mount found"; \
 	else \
-		echo "📁 Creating mount directory: /mnt/Data-$(VOL)"; \
-		sudo mkdir -p /mnt/Data-$(VOL); \
-		echo "🔗 Mounting NFS volume: $(IP):/mnt/Data-$(VOL) -> /mnt/Data-$(VOL)"; \
-		sudo mount -t nfs $(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL); \
-		if mountpoint -q /mnt/Data-$(VOL); then \
-			echo "✅ NFS import complete! Storage volume Data-$(VOL) mounted successfully"; \
+		echo "📁 Creating mount directory: $(LOCAL_PATH)"; \
+		sudo mkdir -p $(LOCAL_PATH); \
+		echo "🔗 Mounting NFS volume: $(IP):$(REMOTE_PATH) -> $(LOCAL_PATH)"; \
+		sudo mount -t nfs $(IP):$(REMOTE_PATH) $(LOCAL_PATH); \
+		if mountpoint -q $(LOCAL_PATH); then \
+			echo "✅ NFS import complete! Storage mounted successfully at $(LOCAL_PATH)"; \
 		else \
 			echo "❌ Error: Failed to mount NFS volume. Check network connectivity and NFS server status."; \
 			exit 1; \
 		fi; \
 	fi
 	@echo "🔧 Checking if persistent mount already exists in /etc/fstab..."
-	@if grep -q "$(IP):/mnt/Data-$(VOL)" /etc/fstab 2>/dev/null; then \
+	@if grep -q "$(IP):$(REMOTE_PATH)" /etc/fstab 2>/dev/null; then \
 		echo "✅ Persistent mount already exists in /etc/fstab"; \
 	else \
-		echo "📝 Adding persistent mount to /etc/fstab: $(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL) nfs defaults 0 0"; \
-		echo '$(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL) nfs defaults 0 0' | sudo tee -a /etc/fstab; \
+		echo "📝 Adding persistent mount to /etc/fstab: $(IP):$(REMOTE_PATH) $(LOCAL_PATH) nfs defaults 0 0"; \
+		echo '$(IP):$(REMOTE_PATH) $(LOCAL_PATH) nfs defaults 0 0' | sudo tee -a /etc/fstab; \
 	fi
 	@echo "📋 Mount verification:"
-	@df -h /mnt/Data-$(VOL) 2>/dev/null || echo "   Unable to show disk usage for /mnt/Data-$(VOL)"
+	@df -h $(LOCAL_PATH) 2>/dev/null || echo "   Unable to show disk usage for $(LOCAL_PATH)"
 	@echo "📂 Directory contents:"
-	@ls -la /mnt/Data-$(VOL) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
+	@ls -la $(LOCAL_PATH) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
 
 install-shim:
 	@echo "Installing homelab network shim service..."
