@@ -77,6 +77,13 @@ import-storage:
 			exit 1; \
 		fi; \
 	fi
+	@echo "🔧 Checking if persistent mount already exists in /etc/fstab..."
+	@if grep -q "$(IP):/mnt/Data-$(VOL)" /etc/fstab 2>/dev/null; then \
+		echo "✅ Persistent mount already exists in /etc/fstab"; \
+	else \
+		echo "📝 Adding persistent mount to /etc/fstab: $(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL) nfs defaults 0 0"; \
+		echo '$(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL) nfs defaults 0 0' | sudo tee -a /etc/fstab; \
+	fi
 	@echo "📋 Mount verification:"
 	@df -h /mnt/Data-$(VOL) 2>/dev/null || echo "   Unable to show disk usage for /mnt/Data-$(VOL)"
 	@echo "📂 Directory contents:"

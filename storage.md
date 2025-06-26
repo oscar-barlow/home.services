@@ -86,6 +86,7 @@ This command:
 - Checks if volume is already mounted (idempotent)
 - Creates mount directory if needed
 - Mounts NFS volume from remote server
+- Adds persistent mount entry to /etc/fstab (idempotent)
 - Verifies successful mount and shows disk usage
 - Lists directory contents for verification
 
