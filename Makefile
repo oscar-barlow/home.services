@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -9,6 +9,7 @@ help:
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires VOL and IP)"
+	@echo "  import-storage - Import storage volume via NFS (requires VOL and IP)"
 	@echo "  install-shim   - Install systemd network shim service"
 	@echo "  network-down   - Stop network services"
 	@echo "  network-up     - Start network services"
@@ -23,6 +24,7 @@ help:
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage VOL=1 IP=192.168.1.100"
+	@echo "  make import-storage VOL=1 IP=192.168.1.100"
 	@echo "  make users-create"
 
 env-down:
@@ -53,6 +55,32 @@ export-storage:
 	@echo "✅ NFS export complete! Storage volume Data-$(VOL) is now accessible at $(IP):32"
 	@echo "📋 Current exports:"
 	@sudo exportfs -v | grep "Data-$(VOL)" || echo "   No matching exports found"
+
+import-storage:
+	@echo "📦 Starting NFS storage import process..."
+	@if [ -z "$(VOL)" ]; then echo "❌ Error: VOL variable is required. Use: make import-storage VOL=1 IP=192.168.1.100"; exit 1; fi
+	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make import-storage VOL=1 IP=192.168.1.100"; exit 1; fi
+	@echo "🔍 Checking if /mnt/Data-$(VOL) is already mounted..."
+	@if mountpoint -q /mnt/Data-$(VOL); then \
+		echo "✅ Storage volume Data-$(VOL) is already mounted at /mnt/Data-$(VOL)"; \
+		echo "📋 Current mount details:"; \
+		mount | grep "Data-$(VOL)" || echo "   No matching mount found"; \
+	else \
+		echo "📁 Creating mount directory: /mnt/Data-$(VOL)"; \
+		sudo mkdir -p /mnt/Data-$(VOL); \
+		echo "🔗 Mounting NFS volume: $(IP):/mnt/Data-$(VOL) -> /mnt/Data-$(VOL)"; \
+		sudo mount -t nfs $(IP):/mnt/Data-$(VOL) /mnt/Data-$(VOL); \
+		if mountpoint -q /mnt/Data-$(VOL); then \
+			echo "✅ NFS import complete! Storage volume Data-$(VOL) mounted successfully"; \
+		else \
+			echo "❌ Error: Failed to mount NFS volume. Check network connectivity and NFS server status."; \
+			exit 1; \
+		fi; \
+	fi
+	@echo "📋 Mount verification:"
+	@df -h /mnt/Data-$(VOL) 2>/dev/null || echo "   Unable to show disk usage for /mnt/Data-$(VOL)"
+	@echo "📂 Directory contents:"
+	@ls -la /mnt/Data-$(VOL) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
 
 install-shim:
 	@echo "Installing homelab network shim service..."

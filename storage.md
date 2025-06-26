@@ -72,4 +72,21 @@ This command:
 - Enables and starts NFS kernel server
 - Shows current exports for verification
 
+## Storage Import
+
+For importing (mounting) storage volumes via NFS:
+
+```bash
+# Import storage volume via NFS
+make import-storage VOL=1 IP=192.168.1.100
+```
+
+This command:
+- Validates required VOL and IP parameters
+- Checks if volume is already mounted (idempotent)
+- Creates mount directory if needed
+- Mounts NFS volume from remote server
+- Verifies successful mount and shows disk usage
+- Lists directory contents for verification
+
 *Note: Additional storage architecture details will be added as the system is implemented.*
