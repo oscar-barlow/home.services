@@ -52,6 +52,20 @@ See [ssh.md](ssh.md) for information about remote access to homelab nodes.
 ### Storage
 See [storage.md](storage.md) for storage architecture and permissions model.
 
+## Node Provisioning
+
+For complete homelab node setup:
+
+```bash
+# Provision a new homelab node
+make provision-node
+```
+
+This command runs:
+1. User and group creation
+2. Systemd shim installation  
+3. User verification
+
 ## Usage
 
 ```bash

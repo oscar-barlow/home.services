@@ -1,31 +1,32 @@
+# Media Server Storage Architecture Plan
+
 ## Overview
 
-This document outlines the architecture for a unified storage system using an N100 machine as the primary server with a Raspberry Pi providing additional network storage. The solution provides a single filesystem interface across all network devices while maintaining fault tolerance and operational flexibility.
+This document outlines the architecture for a unified media server storage system using an N100 machine as the primary server with a Raspberry Pi providing additional network storage. The solution provides a single filesystem interface across all network devices while maintaining fault tolerance and operational flexibility.
 
 ## Architecture Components
 
-### Core Concepts (5 Key Technologies)
+### Core Concepts (4 Key Technologies)
 
 1. **Mount** - Network filesystem mounting via NFS
-2. **pvcreate** - LVM physical volume creation for local storage
-3. **vgcreate** - LVM volume group creation to combine local drives
-4. **lvcreate** - LVM logical volume creation for unified local storage
-5. **mergerfs** - Union filesystem to combine local and remote storage
+2. **pvcreate** - LVM physical volume creation for local and remote storage
+3. **vgcreate** - LVM volume group creation to combine all storage
+4. **lvcreate** - LVM logical volume creation for unified storage
 
 ## System Architecture
 
 ```
 ┌─────────────────┐    NFS    ┌─────────────────────────────┐    NFS/SMB    ┌─────────────┐
-│ Raspberry Pi    │◄─────────►│ N100 Storage Server         │◄─────────────►│ Client      │
+│ Raspberry Pi    │◄─────────►│ N100 Media Server           │◄─────────────►│ Client      │
 │                 │           │                             │               │ Devices     │
 │ - External SSD  │           │ ┌─────────────────────────┐ │               │ - Laptop    │
-│ - NFS Export    │           │ │ MergerFS Unified View   │ │               │ - Phones    │
-└─────────────────┘           │ │ /srv/storage            │ │               │ - TVs       │
-                              │ │                         │ │               └─────────────┘
+│ - Limited NFS   │           │ │ LVM Logical Volume      │ │               │ - Phones    │
+│   Export        │           │ │ /srv/media              │ │               │ - TVs       │
+└─────────────────┘           │ │                         │ │               └─────────────┘
                               │ │ ┌─────────┐ ┌─────────┐ │ │
-                              │ │ │ Local   │ │ Remote  │ │ │
-                              │ │ │ LVM     │ │ Pi NFS  │ │ │
+                              │ │ │ Local   │ │ Pi NFS  │ │ │
                               │ │ │ Storage │ │ Mount   │ │ │
+                              │ │ │ (PVs)   │ │ (PV)    │ │ │
                               │ │ └─────────┘ └─────────┘ │ │
                               │ └─────────────────────────┘ │
                               │                             │
@@ -46,41 +47,30 @@ This document outlines the architecture for a unified storage system using an N1
 
 ### Phase 2: Raspberry Pi Setup
 - [ ] Install and configure NFS server on Raspberry Pi
-- [ ] Create environment-specific directories (prod/preprod)
-- [ ] Set filesystem permissions using environment UIDs/GIDs
-- [ ] Export Pi storage via NFS (no user squashing)
+- [ ] Export Pi storage via NFS to N100 only (/32 subnet)
 - [ ] Test NFS connectivity from N100
 
 ### Phase 3: N100 Local Storage (LVM)
 - [ ] Install LVM tools on N100
 - [ ] Create physical volumes from local drives
-- [ ] Create volume group combining local drives
+- [ ] Mount Pi NFS export on N100
+- [ ] Create LVM backing file on Pi NFS mount
+- [ ] Add Pi backing file as LVM physical volume
+- [ ] Create volume group combining local drives and Pi storage
 - [ ] Create logical volume using all available space
 - [ ] Format logical volume with ext4 filesystem
 - [ ] Mount LVM logical volume
-- [ ] Set environment-specific permissions on local storage
+- [ ] Create environment-specific directory structure (prod/preprod)
+- [ ] Set environment-specific permissions on unified storage
 
-### Phase 4: Network Storage Integration
-- [ ] Install NFS client tools on N100
-- [ ] Mount Pi NFS export on N100
-- [ ] Verify remote storage accessibility and permissions
-- [ ] Configure persistent mounting in /etc/fstab
-
-### Phase 5: Unified Storage (MergerFS)
-- [ ] Install MergerFS on N100
-- [ ] Create MergerFS union combining local LVM and remote NFS
-- [ ] Configure MergerFS policies for file placement
-- [ ] Set up persistent MergerFS mounting
-- [ ] Test unified storage functionality and environment isolation
-
-### Phase 6: Network Export
+### Phase 4: Network Export
 - [ ] Install and configure NFS server on N100
-- [ ] Export unified storage via NFS
+- [ ] Export unified LVM storage via NFS
 - [ ] Install and configure Samba for SMB/CIFS support
 - [ ] Test network access from client devices
 - [ ] Configure firewall rules as needed
 
-### Phase 7: Backup Integration
+### Phase 5: Backup Integration
 - [ ] Install BorgBackup on N100
 - [ ] Configure Borg repository on Backblaze B2
 - [ ] Set up automated backup schedules
@@ -90,33 +80,41 @@ This document outlines the architecture for a unified storage system using an N1
 ## Storage Hierarchy
 
 ```
-/srv/storage/                  # Unified storage view (MergerFS)
+/srv/media/                    # Unified LVM storage (exported via NFS)
 ├── prod/                      # Production environment (UID 5001:5001)
-│   └── data/
-├── preprod/                   # Preprod environment (UID 6001:6001)
-│   └── data/
-├── /mnt/local/               # Local N100 storage (LVM)
-│   └── /dev/storage_vg/storage_lv # LVM logical volume
-│       ├── /dev/sda          # Physical drive 1
-│       └── /dev/sdb          # Physical drive 2
-└── /mnt/pi-remote/           # Pi storage (NFS mount)
-    ├── prod/                 # Pi production storage
-    └── preprod/              # Pi preprod storage
+│   ├── movies/
+│   ├── tv/
+│   └── music/
+└── preprod/                   # Preprod environment (UID 6001:6001)
+    ├── movies/
+    ├── tv/
+    └── music/
+
+# LVM Physical Volumes:
+├── /dev/sda                   # N100 local drive 1
+├── /dev/sdb                   # N100 local drive 2
+└── /mnt/pi-remote/lvm-backing-file.img  # Pi storage as LVM PV
+    └── mounted from: pi-ip:/mnt/pi-storage (NFS)
 ```
 
 ## Fault Tolerance Benefits
 
-### MergerFS Advantages
-- **Partial availability**: Local storage remains accessible if Pi goes offline
-- **Operational flexibility**: Can modify/reboot Pi without affecting N100 storage
-- **Graceful degradation**: System continues operating with reduced capacity
-- **Independent troubleshooting**: Can access underlying storage directly
+### Simplified Architecture Advantages
+- **Clean single filesystem**: LVM creates one true filesystem across all storage
+- **Straightforward troubleshooting**: No union filesystem complexity
+- **Clear data path**: NFS → LVM → NFS export chain
+- **Future migration ready**: Easy path to distributed storage (Ceph/GlusterFS)
 
-### Failure Scenarios Handled
-- Pi hardware failure or maintenance
-- Network connectivity issues between N100 and Pi
-- Pi storage corruption or filesystem issues
-- Individual drive failures within LVM volume group
+### Acknowledged Limitations (2-Node Setup)
+- **Pi failure**: Complete media library unavailable
+- **N100 failure**: Complete media library unavailable  
+- **Network issues**: Complete media library unavailable
+- **Mitigation**: Robust backup strategy with BorgBackup to Backblaze B2
+
+### Future Scalability
+- **3+ nodes**: Migrate to GlusterFS dispersed volumes for fault tolerance
+- **Erasure coding**: Achieve fault tolerance without full replication overhead
+- **Storage efficiency**: Improve from 0% (current) to 67%+ (6+ nodes with erasure coding)
 
 ## Configuration Files
 
@@ -154,18 +152,11 @@ This document outlines the architecture for a unified storage system using an N1
 ## User and Group Management
 
 ### UID/GID Strategy
-- **Production environment**: 5000-5999 UID range
-- **Preprod environment**: 6000-6999 UID range
-- **Base service UIDs**:
-  ```bash
-  PROD_UID=5001      # Production services
-  PROD_GID=5001      # Production group
-  PREPROD_UID=6001   # Preprod services  
-  PREPROD_GID=6001   # Preprod group
-  ```
+- **Production environment**: UID/GID 5001 (`prod-user`/`prod` group)
+- **Preprod environment**: UID/GID 6001 (`preprod-user`/`preprod` group)
 
 ### Multi-Node User Consistency
-- **Identical users required** on all nodes (N100-A, N100-B, Pi)
+- **Identical users required** on all nodes (N100, Pi)
 - **Consistent UID/GID mapping** across entire cluster
 - **No NFS user squashing** to maintain permission enforcement
 
@@ -174,15 +165,17 @@ This document outlines the architecture for a unified storage system using an N1
 # On ALL nodes - create identical users
 sudo groupadd -g 5001 prod
 sudo groupadd -g 6001 preprod
-sudo useradd -u 5001 -g 5001 prod-user
-sudo useradd -u 6001 -g 6001 preprod-user
+sudo useradd -u 5001 -g 5001 -m -s /bin/bash prod-user
+sudo useradd -u 6001 -g 6001 -m -s /bin/bash preprod-user
 ```
 
 ### NFS Export Configuration
 ```bash
-# Pi /etc/exports - no user squashing for true segregation
-/mnt/pi-storage/prod 192.168.1.0/24(rw,sync,no_root_squash)
-/mnt/pi-storage/preprod 192.168.1.0/24(rw,sync,no_root_squash)
+# Pi /etc/exports - restricted to N100 only
+/mnt/pi-storage <N100-IP>/32(rw,sync,no_root_squash)
+
+# N100 /etc/exports - available to entire network
+/srv/media 192.168.1.0/24(rw,sync,no_root_squash)
 ```
 
 ### Docker Container User Mapping
@@ -191,12 +184,12 @@ services:
   service-prod:
     user: "5001:5001"  # Production UID:GID
     volumes:
-      - /srv/storage/prod:/data:ro
+      - /srv/media/prod:/media:ro
       
   service-preprod:
     user: "6001:6001"  # Preprod UID:GID  
     volumes:
-      - /srv/storage/preprod:/data:ro
+      - /srv/media/preprod:/media:ro
 ```
 
 ## Security Considerations

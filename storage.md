@@ -55,18 +55,21 @@ services:
     user: "6001:6001"  # Preprod UID:GID
 ```
 
-## Node Provisioning
 
-For complete node setup:
+## Storage Export
+
+For exporting storage volumes via NFS:
 
 ```bash
-# Provision a new homelab node
-make provision-node
+# Export storage volume via NFS
+make export-storage VOL=1 IP=192.168.1.100
 ```
 
-This command runs:
-1. User and group creation
-2. Systemd shim installation  
-3. User verification
+This command:
+- Validates required VOL and IP parameters
+- Checks if mount point exists at /mnt/Data-$(VOL)
+- Adds NFS export to /etc/exports (idempotent)
+- Enables and starts NFS kernel server
+- Shows current exports for verification
 
 *Note: Additional storage architecture details will be added as the system is implemented.*

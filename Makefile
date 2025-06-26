@@ -1,4 +1,4 @@
-.PHONY: env-down env-up help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -8,6 +8,7 @@ help:
 	@echo "Available commands:"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
+	@echo "  export-storage - Export storage volume via NFS (requires VOL and IP)"
 	@echo "  install-shim   - Install systemd network shim service"
 	@echo "  network-down   - Stop network services"
 	@echo "  network-up     - Start network services"
@@ -21,6 +22,7 @@ help:
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
+	@echo "  make export-storage VOL=1 IP=192.168.1.100"
 	@echo "  make users-create"
 
 env-down:
@@ -28,6 +30,29 @@ env-down:
 
 env-up:
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d
+
+export-storage:
+	@echo "📦 Starting NFS storage export process..."
+	@if [ -z "$(VOL)" ]; then echo "❌ Error: VOL variable is required. Use: make export-storage VOL=1 IP=192.168.1.100"; exit 1; fi
+	@if [ -z "$(IP)" ]; then echo "❌ Error: IP variable is required. Use: make export-storage VOL=1 IP=192.168.1.100"; exit 1; fi
+	@echo "🔍 Checking if Data-$(VOL) is mounted at /mnt/Data-$(VOL)..."
+	@if ! mountpoint -q /mnt/Data-$(VOL); then echo "❌ Error: /mnt/Data-$(VOL) is not mounted. Please mount the disk first."; exit 1; fi
+	@echo "✅ Mount point verified: /mnt/Data-$(VOL)"
+	@echo "🔧 Checking if export already exists..."
+	@if grep -q "^/mnt/Data-$(VOL) $(IP)/32" /etc/exports 2>/dev/null; then \
+		echo "✅ Export already exists for /mnt/Data-$(VOL) to $(IP)/32"; \
+	else \
+		echo "📝 Adding new NFS export: /mnt/Data-$(VOL) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)"; \
+		echo '/mnt/Data-$(VOL) $(IP)/32(rw,sync,no_subtree_check,no_root_squash)' | sudo tee -a /etc/exports; \
+	fi
+	@echo "🔄 Refreshing NFS exports..."
+	sudo exportfs -ra
+	@echo "🚀 Enabling and starting NFS kernel server..."
+	sudo systemctl enable nfs-kernel-server
+	sudo systemctl start nfs-kernel-server
+	@echo "✅ NFS export complete! Storage volume Data-$(VOL) is now accessible at $(IP):32"
+	@echo "📋 Current exports:"
+	@sudo exportfs -v | grep "Data-$(VOL)" || echo "   No matching exports found"
 
 install-shim:
 	@echo "Installing homelab network shim service..."
