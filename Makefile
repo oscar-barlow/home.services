@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -11,6 +11,8 @@ help:
 	@echo "  export-storage - Export storage volume via NFS (requires VOL and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires VOL and IP)"
 	@echo "  install-shim   - Install systemd network shim service"
+	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
+	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  network-down   - Stop network services"
 	@echo "  network-up     - Start network services"
 	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
@@ -25,6 +27,8 @@ help:
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage VOL=1 IP=192.168.1.100"
 	@echo "  make import-storage VOL=1 IP=192.168.1.100"
+	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
+	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make users-create"
 
 env-down:
@@ -96,6 +100,70 @@ install-shim:
 	sudo systemctl enable homelab-shim.service
 	sudo systemctl start homelab-shim.service
 	@echo "Service installed, enabled, and started."
+
+lvm-extend:
+	@echo "📈 Extending LVM storage system..."
+	@if [ -z "$(DEVICES)" ]; then echo "❌ Error: DEVICES variable is required. Use: make lvm-extend DEVICES='/dev/sdc'"; exit 1; fi
+	@echo "📋 Devices to add: $(DEVICES)"
+	@echo "🔍 Verifying volume group 'homelab-vg' exists..."
+	@if ! sudo vgs homelab-vg 2>/dev/null; then \
+		echo "❌ Error: Volume group 'homelab-vg' not found. Use lvm-init first."; \
+		exit 1; \
+	fi
+	@echo "🔧 Creating physical volumes on new devices..."
+	@for device in $(DEVICES); do \
+		echo "  Creating PV on $$device..."; \
+		sudo pvcreate $$device; \
+	done
+	@echo "📦 Extending volume group with new devices..."
+	sudo vgextend homelab-vg $(DEVICES)
+	@echo "💾 Extending logical volume to use new space..."
+	sudo lvextend -l +100%FREE /dev/homelab-vg/data-lv
+	@echo "🗂️ Resizing filesystem to use new space..."
+	sudo resize2fs /dev/homelab-vg/data-lv
+	@echo "✅ LVM extension complete!"
+	@echo "📊 Updated storage summary:"
+	@sudo vgs homelab-vg
+	@sudo lvs homelab-vg
+	@df -h /srv/data
+
+lvm-init:
+	@echo "🚀 Initializing LVM storage system..."
+	@if [ -z "$(DEVICES)" ]; then echo "❌ Error: DEVICES variable is required. Use: make lvm-init DEVICES='/dev/sda /dev/sdb'"; exit 1; fi
+	@echo "📋 Devices to initialize: $(DEVICES)"
+	@echo "🔍 Checking if volume group 'homelab-vg' already exists..."
+	@if sudo vgs homelab-vg 2>/dev/null; then \
+		echo "❌ Error: Volume group 'homelab-vg' already exists. Use lvm-extend to add devices."; \
+		exit 1; \
+	fi
+	@echo "🔧 Creating physical volumes..."
+	@for device in $(DEVICES); do \
+		echo "  Creating PV on $$device..."; \
+		sudo pvcreate $$device; \
+	done
+	@echo "📦 Creating volume group 'homelab-vg'..."
+	sudo vgcreate homelab-vg $(DEVICES)
+	@echo "💾 Creating logical volume 'data-lv' (using 100% of available space)..."
+	sudo lvcreate -l 100%FREE -n data-lv homelab-vg
+	@echo "🗂️ Formatting logical volume with ext4..."
+	sudo mkfs.ext4 /dev/homelab-vg/data-lv
+	@echo "📁 Creating mount point /srv/data..."
+	sudo mkdir -p /srv/data
+	@echo "🔗 Mounting logical volume..."
+	sudo mount /dev/homelab-vg/data-lv /srv/data
+	@echo "📝 Adding to /etc/fstab for persistent mounting..."
+	@if ! grep -q "/dev/homelab-vg/data-lv" /etc/fstab 2>/dev/null; then \
+		echo '/dev/homelab-vg/data-lv /srv/data ext4 defaults 0 2' | sudo tee -a /etc/fstab; \
+	fi
+	@echo "👥 Creating environment directories with proper ownership..."
+	sudo mkdir -p /srv/data/prod /srv/data/preprod
+	sudo chown -R 5001:5001 /srv/data/prod
+	sudo chown -R 6001:6001 /srv/data/preprod
+	@echo "✅ LVM initialization complete!"
+	@echo "📊 Storage summary:"
+	@sudo vgs homelab-vg
+	@sudo lvs homelab-vg
+	@df -h /srv/data
 
 network-down:
 	docker network rm homelab-macvlan || true
