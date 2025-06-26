@@ -65,10 +65,3 @@ make env-up [ENV=prod|preprod]
 # Stop services
 make env-down [ENV=prod|preprod]
 ```
-
-### Architecture
-
-- **macvlan networks**: Separate networks for production and preprod environments
-- **IP pool separation**: Each environment has its own IP range to prevent conflicts
-- **Direct network access**: Containers get IPs directly on the home network
-- **Network isolation**: Production and preprod services are network-isolated
