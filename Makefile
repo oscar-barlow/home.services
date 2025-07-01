@@ -58,7 +58,7 @@ export-storage:
 	sudo systemctl start nfs-kernel-server
 	@echo "✅ NFS export complete! Storage at $(LOCAL_PATH) is now accessible from $(IP)"
 	@echo "📋 Current exports:"
-	@sudo exportfs -v | grep "$(LOCAL_PATH)" || echo "   No matching exports found"
+	@sudo exportfs -v
 
 import-storage:
 	@echo "📦 Starting NFS storage import process..."
