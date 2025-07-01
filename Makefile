@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: create-lvm-backing-file env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -6,6 +6,7 @@ SERVICE ?=
 
 help:
 	@echo "Available commands:"
+	@echo "  create-lvm-backing-file - Create LVM backing file on mounted volume (requires SIZE and VOL)"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
@@ -23,6 +24,7 @@ help:
 	@echo "  users-verify   - Verify user/group consistency on current node"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make create-lvm-backing-file SIZE=500G VOL=/mnt/Data-2"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
@@ -30,6 +32,32 @@ help:
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make users-create"
+
+create-lvm-backing-file:
+	@echo "📦 Creating LVM backing file on mounted volume..."
+	@if [ -z "$(SIZE)" ]; then echo "❌ Error: SIZE variable is required. Use: make create-lvm-backing-file SIZE=500G VOL=/mnt/Data-2"; exit 1; fi
+	@if [ -z "$(VOL)" ]; then echo "❌ Error: VOL variable is required. Use: make create-lvm-backing-file SIZE=500G VOL=/mnt/Data-2"; exit 1; fi
+	@echo "🔍 Verifying mount point $(VOL) exists and is mounted..."
+	@if [ ! -d "$(VOL)" ]; then echo "❌ Error: $(VOL) does not exist. Please mount the volume first."; exit 1; fi
+	@if ! mountpoint -q $(VOL); then echo "❌ Error: $(VOL) is not mounted. Please mount the volume first."; exit 1; fi
+	@echo "✅ Mount point verified: $(VOL)"
+	@echo "💾 Checking available space on $(VOL)..."
+	@df -h $(VOL)
+	@echo "🔧 Creating backing file $(VOL)/lvm-backing.img with size $(SIZE)..."
+	@if [ -f "$(VOL)/lvm-backing.img" ]; then \
+		echo "⚠️  Backing file already exists at $(VOL)/lvm-backing.img"; \
+		ls -lh $(VOL)/lvm-backing.img; \
+	else \
+		sudo fallocate -l $(SIZE) $(VOL)/lvm-backing.img; \
+		echo "✅ Backing file created successfully"; \
+		ls -lh $(VOL)/lvm-backing.img; \
+	fi
+	@echo "🔒 Setting appropriate permissions on backing file..."
+	sudo chmod 600 $(VOL)/lvm-backing.img
+	@echo "🔗 Creating loop device for backing file..."
+	@LOOP_DEVICE=$$(sudo losetup -f --show $(VOL)/lvm-backing.img); \
+	echo "✅ Loop device created: $$LOOP_DEVICE"; \
+	echo "📋 Loop device ready for LVM. Use: make lvm-extend DEVICES='$$LOOP_DEVICE'"
 
 env-down:
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
