@@ -210,11 +210,7 @@ service-up:
 swarm-init:
 	@echo "🚀 Initializing Docker Swarm on this node as manager..."
 	@echo "🔍 Checking if node is already part of a swarm..."
-	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then \
-		echo "✅ Node is already part of a swarm"; \
-		echo "📋 Current swarm status:"; \
-		docker node ls; \
-	else \
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
 		echo "🔧 Initializing new swarm..."; \
 		docker swarm init; \
 		echo "✅ Swarm initialization complete!"; \
@@ -234,6 +230,22 @@ swarm-init:
 		docker swarm join-token worker; \
 		echo "📋 Join tokens for manager nodes:"; \
 		docker swarm join-token manager; \
+	else \
+		echo "✅ Node is already part of a swarm"; \
+		echo "📋 Current swarm status:"; \
+		docker node ls; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to manager node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to manager node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
 	fi
 
 swarm-join:
@@ -241,22 +253,7 @@ swarm-join:
 	@if [ -z "$(MANAGER_IP)" ]; then echo "❌ Error: MANAGER_IP variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
 	@if [ -z "$(TOKEN)" ]; then echo "❌ Error: TOKEN variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
 	@echo "🔍 Checking if node is already part of a swarm..."
-	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then \
-		echo "✅ Node is already part of a swarm"; \
-		docker info --format '{{.Swarm.NodeID}} {{.Swarm.NodeAddr}}'; \
-		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		if [ -n "$(LABEL_HARDWARE)" ]; then \
-			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to current node..."; \
-			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_CLASS)" ]; then \
-			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to current node..."; \
-			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
-			echo "✅ Labels added successfully!"; \
-		fi; \
-	else \
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
 		echo "🔗 Joining swarm at $(MANAGER_IP):2377..."; \
 		docker swarm join --token $(TOKEN) $(MANAGER_IP):2377; \
 		echo "✅ Successfully joined swarm!"; \
@@ -267,6 +264,21 @@ swarm-join:
 		fi; \
 		if [ -n "$(LABEL_CLASS)" ]; then \
 			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to worker node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
+	else \
+		echo "✅ Node is already part of a swarm"; \
+		docker info --format '{{.Swarm.NodeID}} {{.Swarm.NodeAddr}}'; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to current node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to current node..."; \
 			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
 		fi; \
 		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
