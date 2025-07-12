@@ -66,6 +66,20 @@ This command runs:
 2. Systemd shim installation  
 3. User verification
 
+### Docker Swarm Setup
+
+Initialize or join Docker Swarm with hardware labels for proper service placement:
+
+```bash
+# Initialize swarm manager with hardware labels
+make swarm-init LABEL_HARDWARE=n100 LABEL_CLASS=medium
+
+# Join as worker with hardware labels
+make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-4 LABEL_CLASS=small
+```
+
+See [hardware.md](hardware.md) for detailed hardware specifications, installation guides, and standardized labeling conventions.
+
 ## Usage
 
 ```bash
