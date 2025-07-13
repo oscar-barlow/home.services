@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up node-label provision-node service-down service-up swarm-init swarm-join swarm-deploy swarm-down users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim list-services lvm-extend lvm-init network-down network-up node-label provision-node service-down service-up swarm-init swarm-join swarm-deploy swarm-down users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -13,6 +13,7 @@ help:
 	@echo "  install-shim   - Install systemd network shim service (requires INTERFACE)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
+	@echo "  list-services  - List services for ENV (default: preprod)"
 	@echo "  network-down   - Stop network services"
 	@echo "  network-up     - Start network services (requires INTERFACE)"
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
@@ -33,6 +34,7 @@ help:
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
 	@echo "  make install-shim INTERFACE=eth0"
+	@echo "  make list-services ENV=prod"
 	@echo "  make network-up INTERFACE=eth0"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
@@ -212,6 +214,10 @@ network-up:
 		--ip-range=192.168.1.192/26 \
 		-o parent=$(INTERFACE) \
 		homelab-macvlan || true
+
+list-services:
+	@echo "📋 Services for environment: $(ENV)"
+	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
 node-label:
 	@echo "🏷️ Adding labels to swarm node..."
