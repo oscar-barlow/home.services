@@ -60,8 +60,10 @@ env-up:
 		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
 		exit 1; \
 	fi
+	@echo "📦 Generating resolved config file..."
+	docker compose --env-file env/.env.$(ENV) -f docker-swarm-stack.yml config > docker-swarm-stack.$(ENV).yml
 	@echo "📦 Deploying homelab stack..."
-	docker stack deploy --compose-file docker-swarm-stack.yml --env-file env/.env.$(ENV) homelab-$(ENV)
+	docker stack deploy --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
 	@echo "📋 Current services:"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
