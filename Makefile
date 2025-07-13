@@ -61,7 +61,7 @@ env-up:
 		exit 1; \
 	fi
 	@echo "📦 Generating resolved config file..."
-	docker compose --env-file env/.env.$(ENV) -f docker-swarm-stack.yml config > docker-swarm-stack.$(ENV).yml
+	docker compose --env-file env/.env.$(ENV) -f docker-swarm-stack.yml config | sed '/^name:/d' > docker-swarm-stack.$(ENV).yml
 	@echo "📦 Deploying homelab stack..."
 	docker stack deploy --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
