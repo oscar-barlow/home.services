@@ -14,7 +14,7 @@ help:
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  network-down   - Stop network services"
-	@echo "  network-up     - Start network services"
+	@echo "  network-up     - Start network services (requires INTERFACE)"
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
@@ -33,6 +33,7 @@ help:
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
 	@echo "  make install-shim INTERFACE=eth0"
+	@echo "  make network-up INTERFACE=eth0"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
@@ -182,12 +183,14 @@ network-down:
 	docker network rm homelab-macvlan || true
 
 network-up:
+	@if [ -z "$(INTERFACE)" ]; then echo "❌ Error: INTERFACE variable is required. Use: make network-up INTERFACE=eth0"; exit 1; fi
+	@echo "🔧 Creating macvlan network on interface: $(INTERFACE)"
 	docker network create -d macvlan \
 		--scope swarm \
 		--subnet=192.168.1.0/24 \
 		--gateway=192.168.1.1 \
 		--ip-range=192.168.1.192/26 \
-		-o parent=eth0 \
+		-o parent=$(INTERFACE) \
 		homelab-macvlan || true
 
 node-label:
