@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up swarm-init swarm-join users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -18,6 +18,8 @@ help:
 	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  service-up     - Start specific SERVICE in ENV (requires SERVICE=name)"
+	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
+	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN, optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  users-create   - Create prod/preprod users and groups on current node"
 	@echo "  users-remove   - Remove prod/preprod users and groups from current node"
 	@echo "  users-verify   - Verify user/group consistency on current node"
@@ -29,6 +31,9 @@ help:
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
+	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
+	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
+	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
 	@echo "  make users-create"
 
 env-down:
@@ -178,15 +183,21 @@ network-up:
 		homelab-macvlan || true
 
 provision-node:
-	@echo "Provisioning homelab node..."
+	@echo "🚀 Provisioning homelab node..."
 	@echo "Step 1: Creating users and groups..."
 	@$(MAKE) users-create
 	@echo "Step 2: Installing systemd shim..."
 	@$(MAKE) install-shim
 	@echo "Step 3: Verifying setup..."
 	@$(MAKE) users-verify
-	@echo "Node provisioning complete!"
-	@echo "TODO: Add docker swarm join command when available"
+	@echo "Step 4: Joining Docker Swarm..."
+	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
+		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
+	else \
+		echo "⚠️  Skipping swarm join - MANAGER_IP and TOKEN not provided"; \
+		echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
+	fi
+	@echo "✅ Node provisioning complete!"
 
 service-down:
 	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-down SERVICE=servicename"; exit 1; fi
@@ -195,6 +206,85 @@ service-down:
 service-up:
 	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-up SERVICE=servicename"; exit 1; fi
 	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d $(SERVICE)
+
+swarm-init:
+	@echo "🚀 Initializing Docker Swarm on this node as manager..."
+	@echo "🔍 Checking if node is already part of a swarm..."
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
+		echo "🔧 Initializing new swarm..."; \
+		docker swarm init; \
+		echo "✅ Swarm initialization complete!"; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to manager node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to manager node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
+		echo "📋 Join tokens for worker nodes:"; \
+		docker swarm join-token worker; \
+		echo "📋 Join tokens for manager nodes:"; \
+		docker swarm join-token manager; \
+	else \
+		echo "✅ Node is already part of a swarm"; \
+		echo "📋 Current swarm status:"; \
+		docker node ls; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to manager node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to manager node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
+	fi
+
+swarm-join:
+	@echo "🤝 Joining Docker Swarm as worker node..."
+	@if [ -z "$(MANAGER_IP)" ]; then echo "❌ Error: MANAGER_IP variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
+	@if [ -z "$(TOKEN)" ]; then echo "❌ Error: TOKEN variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
+	@echo "🔍 Checking if node is already part of a swarm..."
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
+		echo "🔗 Joining swarm at $(MANAGER_IP):2377..."; \
+		docker swarm join --token $(TOKEN) $(MANAGER_IP):2377; \
+		echo "✅ Successfully joined swarm!"; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to worker node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to worker node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
+	else \
+		echo "✅ Node is already part of a swarm"; \
+		docker info --format '{{.Swarm.NodeID}} {{.Swarm.NodeAddr}}'; \
+		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
+		if [ -n "$(LABEL_HARDWARE)" ]; then \
+			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to current node..."; \
+			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_CLASS)" ]; then \
+			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to current node..."; \
+			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
+		fi; \
+		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
+			echo "✅ Labels added successfully!"; \
+		fi; \
+	fi
 
 users-create:
 	@echo "Creating prod/preprod users and groups on current node..."
