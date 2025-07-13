@@ -1,5 +1,5 @@
 networks:
-  homelab_macvlan:
+  homelab-macvlan:
     external: true
 
 services:
@@ -23,7 +23,7 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      homelab_macvlan:
+      homelab-macvlan:
         ipv4_address: ${PIHOLE_IP}
     deploy:
       restart_policy:
@@ -47,7 +47,7 @@ services:
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
     networks:
-      homelab_macvlan:
+      homelab-macvlan:
         ipv4_address: ${JELLYFIN_IP}
     deploy:
       restart_policy:
@@ -66,7 +66,7 @@ services:
     volumes:
       - ./hello-world/${ENV_NAME}:/usr/share/nginx/html:ro
     networks:
-      homelab_macvlan:
+      homelab-macvlan:
         ipv4_address: ${HELLO_WORLD_IP}
     deploy:
       restart_policy:
