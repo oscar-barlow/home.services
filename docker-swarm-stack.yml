@@ -1,0 +1,81 @@
+version: '3.8'
+
+networks:
+  homelab_macvlan:
+    name: homelab-macvlan
+    external: true
+
+services:
+  pihole:
+    image: pihole/pihole:${PIHOLE_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
+      FTLCONF_local_ipv4: '${PIHOLE_IP}'
+      FTLCONF_dns_listeningMode: 'all'
+      FTLCONF_misc_etc_dnsmasq_d: 'true'
+    volumes:
+      - './pihole/${ENV_NAME}/etc-pihole:/etc/pihole'
+      - './pihole/${ENV_NAME}/etc-dnsmasq.d:/etc/dnsmasq.d'
+      - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
+    cap_add:
+      - NET_ADMIN
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    networks:
+      homelab_macvlan:
+        ipv4_address: ${PIHOLE_IP}
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+      placement:
+        constraints:
+          - node.labels.hardware == rpi-3
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+
+  jellyfin:
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
+    volumes:
+      - ./jellyfin/${ENV_NAME}/config:/config
+      - ./jellyfin/${ENV_NAME}/cache:/cache
+      - ./jellyfin/${ENV_NAME}/tmp:/tmp/jellyfin
+      - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
+      - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
+      - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
+    networks:
+      homelab_macvlan:
+        ipv4_address: ${JELLYFIN_IP}
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  hello-world:
+    image: nginx:${HELLO_WORLD_VERSION}
+    volumes:
+      - ./hello-world/${ENV_NAME}:/usr/share/nginx/html:ro
+    networks:
+      homelab_macvlan:
+        ipv4_address: ${HELLO_WORLD_IP}
+    deploy:
+      restart_policy:
+        condition: unless-stopped
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M

@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up swarm-init swarm-join users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up swarm-init swarm-join swarm-deploy swarm-down users-create users-remove users-verify
 
 # Default environment if not specified
 ENV ?= preprod
@@ -20,6 +20,8 @@ help:
 	@echo "  service-up     - Start specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN, optional: LABEL_HARDWARE, LABEL_CLASS)"
+	@echo "  swarm-deploy   - Deploy stack to Docker Swarm for ENV (default: preprod)"
+	@echo "  swarm-down     - Remove stack from Docker Swarm for ENV (default: preprod)"
 	@echo "  users-create   - Create prod/preprod users and groups on current node"
 	@echo "  users-remove   - Remove prod/preprod users and groups from current node"
 	@echo "  users-verify   - Verify user/group consistency on current node"
@@ -34,6 +36,7 @@ help:
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
+	@echo "  make swarm-deploy ENV=prod"
 	@echo "  make users-create"
 
 env-down:
@@ -315,3 +318,27 @@ users-verify:
 	@id preprod-user 2>/dev/null || echo "  ERROR: preprod-user not found"
 	@getent group preprod 2>/dev/null || echo "  ERROR: preprod group not found"
 	@echo "Verification complete!"
+
+swarm-deploy:
+	@echo "🚀 Deploying stack to Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if swarm is initialized..."
+	@if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then \
+		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
+		exit 1; \
+	fi
+	@echo "📦 Deploying homelab stack..."
+	docker stack deploy --compose-file docker-swarm-stack.yml --env-file env/.env.$(ENV) homelab-$(ENV)
+	@echo "✅ Stack deployment complete!"
+	@echo "📋 Current services:"
+	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
+
+swarm-down:
+	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if stack exists..."
+	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
+		echo "📦 Removing homelab-$(ENV) stack..."; \
+		docker stack rm homelab-$(ENV); \
+		echo "✅ Stack removal complete!"; \
+	else \
+		echo "⚠️  Stack homelab-$(ENV) not found"; \
+	fi
