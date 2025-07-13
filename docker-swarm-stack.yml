@@ -27,7 +27,7 @@ services:
         ipv4_address: ${PIHOLE_IP}
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
       placement:
         constraints:
           - node.labels.hardware == rpi-3
@@ -51,7 +51,7 @@ services:
         ipv4_address: ${JELLYFIN_IP}
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
       placement:
         constraints:
           - node.labels.hardware == n100
@@ -70,7 +70,7 @@ services:
         ipv4_address: ${HELLO_WORLD_IP}
     deploy:
       restart_policy:
-        condition: unless-stopped
+        condition: on-failure
       resources:
         limits:
           memory: 128M
