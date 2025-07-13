@@ -12,9 +12,8 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
-      - '/srv/data/${ENV_NAME}/pihole/etc-pihole:/etc/pihole'
-      - '/srv/data/${ENV_NAME}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
-      - '/srv/data/${ENV_NAME}/dns/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
+      - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
+      - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
     cap_add:
       - NET_ADMIN
     logging:
@@ -40,9 +39,9 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
-      - /srv/data/${ENV_NAME}/jellyfin/config:/config
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /tmp/var/${ENV_NAME}/jellyfin/tmp:/tmp/jellyfin
+      - /srv/data/${ENV_NAME}/jellyfin/config:/config
       - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
