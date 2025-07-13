@@ -10,7 +10,7 @@ help:
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
-	@echo "  install-shim   - Install systemd network shim service"
+	@echo "  install-shim   - Install systemd network shim service (requires INTERFACE)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  network-down   - Stop network services"
@@ -32,6 +32,7 @@ help:
 	@echo "  make service-up ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
+	@echo "  make install-shim INTERFACE=eth0"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
@@ -105,11 +106,13 @@ import-storage:
 
 install-shim:
 	@echo "Installing homelab network shim service..."
-	sudo cp homelab-shim.service /etc/systemd/system/
+	@if [ -z "$(INTERFACE)" ]; then echo "❌ Error: INTERFACE variable is required. Use: make install-shim INTERFACE=eth0"; exit 1; fi
+	@echo "🔧 Configuring shim service for interface: $(INTERFACE)"
+	@sed 's/INTERFACE/$(INTERFACE)/g' homelab-shim.service.tpl | sudo tee /etc/systemd/system/homelab-shim.service > /dev/null
 	sudo systemctl daemon-reload
 	sudo systemctl enable homelab-shim.service
 	sudo systemctl start homelab-shim.service
-	@echo "Service installed, enabled, and started."
+	@echo "✅ Service installed, enabled, and started for interface $(INTERFACE)"
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."
@@ -219,15 +222,30 @@ provision-node:
 	@echo "Step 1: Creating users and groups..."
 	@$(MAKE) users-create
 	@echo "Step 2: Installing systemd shim..."
-	@$(MAKE) install-shim
+	@if [ -z "$(INTERFACE)" ]; then \
+		echo "🔍 Network interface required for shim installation."; \
+		echo "Available interfaces:"; \
+		ip link show | grep '^[0-9]' | cut -d: -f2 | tr -d ' ' | grep -v lo; \
+		read -p "Enter interface name (e.g., eth0, enp0s3): " interface; \
+		$(MAKE) install-shim INTERFACE=$$interface; \
+	else \
+		$(MAKE) install-shim INTERFACE=$(INTERFACE); \
+	fi
 	@echo "Step 3: Verifying setup..."
 	@$(MAKE) users-verify
 	@echo "Step 4: Joining Docker Swarm..."
 	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
 		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
 	else \
-		echo "⚠️  Skipping swarm join - MANAGER_IP and TOKEN not provided"; \
-		echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
+		echo "🔍 Docker Swarm join parameters needed."; \
+		read -p "Enter manager IP (or press Enter to skip): " manager_ip; \
+		if [ -n "$$manager_ip" ]; then \
+			read -p "Enter join token: " token; \
+			$(MAKE) swarm-join MANAGER_IP=$$manager_ip TOKEN=$$token; \
+		else \
+			echo "⚠️  Skipping swarm join"; \
+			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
+		fi; \
 	fi
 	@echo "Step 5: Node labeling..."
 	@echo "⚠️  Node labels must be added from a manager node using:"
