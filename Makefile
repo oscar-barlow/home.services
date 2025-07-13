@@ -43,10 +43,28 @@ help:
 	@echo "  make users-create"
 
 env-down:
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
+	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if stack exists..."
+	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
+		echo "📦 Removing homelab-$(ENV) stack..."; \
+		docker stack rm homelab-$(ENV); \
+		echo "✅ Stack removal complete!"; \
+	else \
+		echo "⚠️  Stack homelab-$(ENV) not found"; \
+	fi
 
 env-up:
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d
+	@echo "🚀 Deploying stack to Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if swarm is initialized..."
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
+		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
+		exit 1; \
+	fi
+	@echo "📦 Deploying homelab stack..."
+	docker stack deploy --compose-file docker-swarm-stack.yml --env-file env/.env.$(ENV) homelab-$(ENV)
+	@echo "✅ Stack deployment complete!"
+	@echo "📋 Current services:"
+	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
 export-storage:
 	@echo "📦 Starting NFS storage export process..."
@@ -355,27 +373,3 @@ users-verify:
 	@id preprod-user 2>/dev/null || echo "  ERROR: preprod-user not found"
 	@getent group preprod 2>/dev/null || echo "  ERROR: preprod group not found"
 	@echo "Verification complete!"
-
-swarm-deploy:
-	@echo "🚀 Deploying stack to Docker Swarm for environment: $(ENV)"
-	@echo "🔍 Checking if swarm is initialized..."
-	@if ! docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "active"; then \
-		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
-		exit 1; \
-	fi
-	@echo "📦 Deploying homelab stack..."
-	docker stack deploy --compose-file docker-swarm-stack.yml --env-file env/.env.$(ENV) homelab-$(ENV)
-	@echo "✅ Stack deployment complete!"
-	@echo "📋 Current services:"
-	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
-
-swarm-down:
-	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
-	@echo "🔍 Checking if stack exists..."
-	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
-		echo "📦 Removing homelab-$(ENV) stack..."; \
-		docker stack rm homelab-$(ENV); \
-		echo "✅ Stack removal complete!"; \
-	else \
-		echo "⚠️  Stack homelab-$(ENV) not found"; \
-	fi
