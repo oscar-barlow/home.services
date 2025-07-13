@@ -12,9 +12,9 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
-      - './pihole/${ENV_NAME}/etc-pihole:/etc/pihole'
-      - './pihole/${ENV_NAME}/etc-dnsmasq.d:/etc/dnsmasq.d'
-      - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
+      - '/srv/data/${ENV_NAME}/pihole/etc-pihole:/etc/pihole'
+      - '/srv/data/${ENV_NAME}/pihole/etc-dnsmasq.d:/etc/dnsmasq.d'
+      - '/srv/data/${ENV_NAME}/dns/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     cap_add:
       - NET_ADMIN
     logging:
@@ -40,9 +40,9 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
-      - ./jellyfin/${ENV_NAME}/config:/config
-      - ./jellyfin/${ENV_NAME}/cache:/cache
-      - ./jellyfin/${ENV_NAME}/tmp:/tmp/jellyfin
+      - /srv/data/${ENV_NAME}/jellyfin/config:/config
+      - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
+      - /tmp/var/${ENV_NAME}/jellyfin/tmp:/tmp/jellyfin
       - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
@@ -64,7 +64,7 @@ services:
   hello-world:
     image: nginx:${HELLO_WORLD_VERSION}
     volumes:
-      - ./hello-world/${ENV_NAME}:/usr/share/nginx/html:ro
+      - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:
       homelab-macvlan:
         ipv4_address: ${HELLO_WORLD_IP}
