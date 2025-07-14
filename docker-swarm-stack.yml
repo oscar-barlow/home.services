@@ -11,8 +11,6 @@ services:
       FTLCONF_local_ipv4: '${PIHOLE_IP}'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
-      PIHOLE_UID: '${UID}'
-      PIHOLE_GID: '${GID}'
     volumes:
       - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
       - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
@@ -40,7 +38,6 @@ services:
 
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
-    user: '${UID}:${GID}'
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /tmp/var/${ENV_NAME}/jellyfin/tmp:/tmp/jellyfin
@@ -65,7 +62,6 @@ services:
 
   hello-world:
     image: nginx:${HELLO_WORLD_VERSION}
-    user: '${UID}:${GID}'
     volumes:
       - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:

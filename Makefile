@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim list-services lvm-extend lvm-init network-down network-up node-label provision-node service-down service-up swarm-init swarm-join swarm-deploy swarm-down users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage install-shim list-services lvm-extend lvm-init network-down network-up node-label provision-node service-down service-up swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -24,9 +24,6 @@ help:
 	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
 	@echo "  swarm-deploy   - Deploy stack to Docker Swarm for ENV (default: preprod)"
 	@echo "  swarm-down     - Remove stack from Docker Swarm for ENV (default: preprod)"
-	@echo "  users-create   - Create prod/preprod users and groups on current node"
-	@echo "  users-remove   - Remove prod/preprod users and groups from current node"
-	@echo "  users-verify   - Verify user/group consistency on current node"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
@@ -42,7 +39,6 @@ help:
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
 	@echo "  make swarm-deploy ENV=prod"
-	@echo "  make users-create"
 
 env-down:
 	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
@@ -191,10 +187,8 @@ lvm-init:
 	@if ! grep -q "/dev/homelab-vg/data-lv" /etc/fstab 2>/dev/null; then \
 		echo '/dev/homelab-vg/data-lv /srv/data ext4 defaults 0 2' | sudo tee -a /etc/fstab; \
 	fi
-	@echo "👥 Creating environment directories with proper ownership..."
+	@echo "📁 Creating environment directories..."
 	sudo mkdir -p /srv/data/prod /srv/data/preprod
-	sudo chown -R 5001:5001 /srv/data/prod
-	sudo chown -R 6001:6001 /srv/data/preprod
 	@echo "✅ LVM initialization complete!"
 	@echo "📊 Storage summary:"
 	@sudo vgs homelab-vg
@@ -248,9 +242,7 @@ node-label:
 
 provision-node:
 	@echo "🚀 Provisioning homelab node..."
-	@echo "Step 1: Creating users and groups..."
-	@$(MAKE) users-create
-	@echo "Step 2: Installing systemd shim..."
+	@echo "Step 1: Installing systemd shim..."
 	@if [ -z "$(INTERFACE)" ]; then \
 		echo "🔍 Network interface required for shim installation."; \
 		echo "Available interfaces:"; \
@@ -260,9 +252,7 @@ provision-node:
 	else \
 		$(MAKE) install-shim INTERFACE=$(INTERFACE); \
 	fi
-	@echo "Step 3: Verifying setup..."
-	@$(MAKE) users-verify
-	@echo "Step 4: Joining Docker Swarm..."
+	@echo "Step 2: Joining Docker Swarm..."
 	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
 		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
 	else \
@@ -276,7 +266,7 @@ provision-node:
 			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
 		fi; \
 	fi
-	@echo "Step 5: Node labeling..."
+	@echo "Step 3: Node labeling..."
 	@echo "⚠️  Node labels must be added from a manager node using:"
 	@echo "   make node-label NODE_ID=<node-id> LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"
 	@echo "   Use 'docker node ls' on manager to see node IDs"
@@ -352,32 +342,3 @@ swarm-join:
 		echo "   make node-label NODE_ID=$$NODE_ID LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"; \
 	fi
 
-users-create:
-	@echo "Creating prod/preprod users and groups on current node..."
-	@echo "Creating groups..."
-	sudo groupadd -g 5001 prod || echo "Group 'prod' already exists"
-	sudo groupadd -g 6001 preprod || echo "Group 'preprod' already exists"
-	@echo "Creating users..."
-	sudo useradd -u 5001 -g 5001 -m -s /bin/bash prod-user || echo "User 'prod-user' already exists"
-	sudo useradd -u 6001 -g 6001 -m -s /bin/bash preprod-user || echo "User 'preprod-user' already exists"
-	@echo "Users and groups created successfully!"
-
-users-remove:
-	@echo "Removing prod/preprod users and groups from current node..."
-	@echo "WARNING: This will remove users and their home directories!"
-	@read -p "Are you sure? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	sudo userdel -r prod-user || echo "User 'prod-user' not found"
-	sudo userdel -r preprod-user || echo "User 'preprod-user' not found"
-	sudo groupdel prod || echo "Group 'prod' not found"
-	sudo groupdel preprod || echo "Group 'preprod' not found"
-	@echo "Users and groups removed successfully!"
-
-users-verify:
-	@echo "Verifying user/group consistency on current node..."
-	@echo "Production environment (UID/GID 5001):"
-	@id prod-user 2>/dev/null || echo "  ERROR: prod-user not found"
-	@getent group prod 2>/dev/null || echo "  ERROR: prod group not found"
-	@echo "Preprod environment (UID/GID 6001):"
-	@id preprod-user 2>/dev/null || echo "  ERROR: preprod-user not found"
-	@getent group preprod 2>/dev/null || echo "  ERROR: preprod group not found"
-	@echo "Verification complete!"
