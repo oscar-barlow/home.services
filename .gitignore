@@ -1,7 +1,6 @@
 # pihole
-etc-dnsmasq.d
-etc-pihole/
-pihole/*/
+pihole/*/etc/pihole/*
+pihole/*/etc/dnsmasq.d/*
 
 # env
 .env.*
@@ -9,18 +8,6 @@ pihole/*/
 
 # generated swarm config files (may contain secrets)
 docker-swarm-stack.*.yml
-
-# plex
-plex/config/
-plex/media
-
-# jellyfin
-jellyfin/prod/
-jellyfin/preprod/
-
-# kavita
-kavita/prod/
-kavita/preprod/
 
 # dns
 dns/*

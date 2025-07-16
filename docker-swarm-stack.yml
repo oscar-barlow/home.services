@@ -12,8 +12,8 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
-      - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
-      - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
+      - './pihole/${ENV_NAME}/etc/pihole:/etc/pihole'
+      - './pihole/${ENV_NAME}/etc/dnsmasq.d:/etc/dnsmasq.d'
     cap_add:
       - NET_ADMIN
     logging:
