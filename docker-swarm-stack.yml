@@ -18,7 +18,6 @@ services:
     volumes:
       - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
       - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
-      - './dns/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     cap_add:
       - NET_ADMIN
     logging:
