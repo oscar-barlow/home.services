@@ -3,7 +3,7 @@
 
 * Router - Standard home router with DHCP
 * Raspberry Pi (192.168.1.204) - Primary homelab node running Traefik reverse proxy
-* N100 Machine (192.168.1.10) - High-performance compute node
+* N100 Machine (192.168.1.11) - High-performance compute node
 * Docker Swarm - Overlay network for internal service communication
 
 ## Network Design
@@ -19,9 +19,9 @@ The homelab uses a dual-environment architecture with separate Traefik instances
 - **Services**: Production services with stable configurations
 
 **Preprod Environment (.preprod.home domain):**
-- **Location**: N100 Machine (192.168.1.10)  
+- **Location**: N100 Machine (192.168.1.11)  
 - **Traefik Instance**: Preprod Traefik on N100
-- **DNS**: `*.preprod.home` → 192.168.1.10
+- **DNS**: `*.preprod.home` → 192.168.1.11
 - **Services**: Development/testing services
 
 ### Benefits of This Approach
@@ -44,7 +44,7 @@ External Request → Pi (192.168.1.204) → Production Traefik → Docker Swarm 
 
 **Preprod Services:**
 ```
-External Request → N100 (192.168.1.10) → Preprod Traefik → Docker Swarm Service  
+External Request → N100 (192.168.1.11) → Preprod Traefik → Docker Swarm Service  
 ```
 - `jellyfin.preprod.home` → N100 IP → Preprod Traefik → Preprod Jellyfin
 - `pihole.preprod.home` → N100 IP → Preprod Traefik → Preprod Pi-hole

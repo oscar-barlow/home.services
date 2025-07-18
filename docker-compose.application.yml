@@ -1,12 +1,16 @@
 networks:
-  homelab_macvlan:
-    name: homelab-macvlan
-    external: true
+  homelab-overlay:
+    driver: overlay
+    attachable: true
 
 services:
   pihole:
     container_name: pihole-${ENV_NAME}
     image: pihole/pihole:${PIHOLE_VERSION}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.services.pihole.loadbalancer.server.port=80"
     environment:
       TZ: 'Europe/London'
       WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
@@ -26,12 +30,18 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      homelab_macvlan:
-        ipv4_address: ${PIHOLE_IP}
+      - homelab-overlay
 
   jellyfin:
     container_name: jellyfin-${ENV_NAME}
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+    ports:
+      - "80:80"
+      - "8096:8096"
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
@@ -42,17 +52,42 @@ services:
       - /tmp/jellyfin
     restart: 'unless-stopped'
     networks:
-      homelab_macvlan:
-        ipv4_address: ${JELLYFIN_IP}
+      - homelab-overlay
 
   hello-world:
     container_name: hello-world-${ENV_NAME}
     image: nginx:${HELLO_WORLD_VERSION}
-    ports:
-      - "80:80"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.hello-world.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
+      - "traefik.http.services.hello-world.loadbalancer.server.port=80"
     restart: unless-stopped
     volumes:
       - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:
-      homelab_macvlan:
-        ipv4_address: ${HELLO_WORLD_IP}
+      - homelab-overlay
+
+  traefik:
+    container_name: traefik-${ENV_NAME}
+    image: traefik:${TRAEFIK_VERSION}
+    command:
+      - "--api.dashboard=true"
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+      - "--entrypoints.websecure.address=:443"
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8080:8080"  # Traefik dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homelab-overlay
+    restart: unless-stopped
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

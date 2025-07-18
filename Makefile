@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -10,6 +10,7 @@ help:
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
+	@echo "  inspect-node   - Inspect Docker Swarm node details (requires HOSTNAME)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  list-services  - List services for ENV (default: preprod)"
@@ -26,6 +27,7 @@ help:
 	@echo "  make service-down ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
+	@echo "  make inspect-node HOSTNAME=rpi-3-0"
 	@echo "  make list-services ENV=prod"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
@@ -117,6 +119,31 @@ import-storage:
 	@echo "📂 Directory contents:"
 	@ls -la $(LOCAL_PATH) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
 
+inspect-node:
+	@echo "🔍 Inspecting Docker Swarm node..."
+	@if [ -z "$(HOSTNAME)" ]; then echo "❌ Error: HOSTNAME variable is required. Use: make inspect-node HOSTNAME=rpi-3-0"; exit 1; fi
+	@echo "🔍 Checking if this is a manager node..."
+	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
+		echo "❌ Error: This command must be run from a swarm manager node."; \
+		exit 1; \
+	fi
+	@echo "📋 Finding node by hostname: $(HOSTNAME)"
+	@NODE_ID=$$(docker node ls --format '{{.ID}} {{.Hostname}}' | grep '$(HOSTNAME)' | awk '{print $$1}' | head -1); \
+	if [ -z "$$NODE_ID" ]; then \
+		echo "❌ Error: Node with hostname '$(HOSTNAME)' not found."; \
+		echo "📋 Available nodes:"; \
+		docker node ls --format "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}"; \
+		exit 1; \
+	fi; \
+	echo "✅ Found node: $$NODE_ID"; \
+	echo "📋 Node details:"; \
+	docker node inspect $$NODE_ID --format '{{.Description.Hostname}} ({{.ID}}): {{range $$k,$$v := .Spec.Labels}}{{$$k}}={{$$v}} {{end}}'; \
+	echo "📊 Node status: $$(docker node inspect $$NODE_ID --format '{{.Status.State}}')" ; \
+	echo "🏷️  Node availability: $$(docker node inspect $$NODE_ID --format '{{.Spec.Availability}}')" ; \
+	echo "🏛️  Node role: $$(docker node inspect $$NODE_ID --format '{{.Spec.Role}}')" ; \
+	echo "📍 Node address: $$(docker node inspect $$NODE_ID --format '{{.Status.Addr}}')" ; \
+	echo "🖥️  Platform: $$(docker node inspect $$NODE_ID --format '{{.Description.Platform.OS}}/{{.Description.Platform.Architecture}}')" ; \
+	echo "🔧 Docker version: $$(docker node inspect $$NODE_ID --format '{{.Description.Engine.EngineVersion}}')"
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."
