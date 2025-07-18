@@ -63,6 +63,8 @@ services:
 
   hello-world:
     image: nginx:${HELLO_WORLD_VERSION}
+    ports:
+      - "80:80"
     volumes:
       - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:

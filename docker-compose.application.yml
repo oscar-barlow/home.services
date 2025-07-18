@@ -47,9 +47,11 @@ services:
   hello-world:
     container_name: hello-world-${ENV_NAME}
     image: nginx:${HELLO_WORLD_VERSION}
+    ports:
+      - "80:80"
     restart: unless-stopped
     volumes:
-      - ./hello-world/${ENV_NAME}:/usr/share/nginx/html:ro
+      - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:
       homelab_macvlan:
         ipv4_address: ${HELLO_WORLD_IP}
