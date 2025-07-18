@@ -21,12 +21,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media
 
-## File Synchronization
-- **CRITICAL**: Always keep `docker-compose.application.yml` and `docker-swarm-stack.yml` in sync
-- `docker-swarm-stack.yml` is the definitive source of truth for service configurations
-- When making changes to services, update the swarm stack file first, then sync changes to compose file
-- Both files must have identical service configurations (volumes, environment, networks, etc.)
-- The compose file may have additional fields like `container_name` and `restart` that don't apply to swarm
+## Service Deployment
+- **Manual Service Placement**: Services are deployed manually on specific nodes using Docker Compose
+- Each node requires the macvlan network to be created: `make network-up INTERFACE=<interface>`
+- Use `make env-up ENV=<env>` to start all services on a node, or `make service-up SERVICE=<service> ENV=<env>` for individual services
+- Service placement across nodes is managed manually - no automatic orchestration
+- Each service has a dedicated IP address in the macvlan network as defined in environment files
 
 ## Repository Structure
 - Service configurations are organized by component (nginx, pihole, jellyfin)
