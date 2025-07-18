@@ -89,30 +89,29 @@ auto enp1s0
 iface enp1s0 inet dhcp
 ```
 
-## Manual Service Deployment
+## Docker Swarm Node Labels
 
-Services are deployed manually on specific nodes using Docker Compose. Each node requires:
+When joining nodes to the Docker Swarm, use standardized labels to identify hardware and capacity:
 
-### Network Setup
+### Hardware Labels (`LABEL_HARDWARE`)
+- `rpi-4` - Raspberry Pi 4  
+- `n100` - N100 Mini PC (like Geekom Mini Air12-0)
+
+### Class Labels (`LABEL_CLASS`)
+- `extra-small` - Minimal resource nodes
+- `small` - Low resource nodes
+- `medium` - Moderate resource nodes
+- `large` - High resource nodes
+- `extra-large` - Maximum resource nodes
+
+### Usage Examples
 ```bash
-# Create macvlan network on each node
-make network-up INTERFACE=enp1s0  # Replace with actual interface name
+# Initialize swarm with labels
+make swarm-init LABEL_HARDWARE=n100 LABEL_CLASS=medium
+
+# Join worker with labels  
+make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-4 LABEL_CLASS=small
 ```
-
-### Service Deployment
-```bash
-# Deploy all services for an environment
-make env-up ENV=prod
-
-# Deploy individual services
-make service-up SERVICE=jellyfin ENV=prod
-make service-up SERVICE=pihole ENV=prod
-```
-
-### Hardware Considerations
-- **N100 Mini PC**: Suitable for compute-intensive services (Jellyfin, etc.)
-- **Raspberry Pi 4**: Good for lightweight services (Pi-hole, monitoring)
-- **Storage**: Services requiring persistent storage should run on nodes with adequate disk space
 
 ## Notes
 
