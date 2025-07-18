@@ -116,6 +116,7 @@ make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-4 LA
 ## Notes
 
 - Keep WiFi configuration as backup
-- Ethernet required for Docker MacVLAN networks
+- Ethernet recommended for Docker Swarm networking performance
 - Driver may need rebuilding after kernel updates
 - WiFi provides adequate performance for most services when ethernet driver unavailable
+- Traefik reverse proxy eliminates need for individual service IP addresses

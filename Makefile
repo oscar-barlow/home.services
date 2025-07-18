@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim list-services lvm-extend lvm-init network-down network-up node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: env-down env-up export-storage help import-storage list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -10,14 +10,11 @@ help:
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
-	@echo "  install-shim   - Install systemd network shim service (requires INTERFACE)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  list-services  - List services for ENV (default: preprod)"
-	@echo "  network-down   - Stop network services"
-	@echo "  network-up     - Start network services (requires INTERFACE)"
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
-	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
+	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
@@ -29,9 +26,7 @@ help:
 	@echo "  make service-down ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
-	@echo "  make install-shim INTERFACE=eth0"
 	@echo "  make list-services ENV=prod"
-	@echo "  make network-up INTERFACE=eth0"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
 	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
@@ -122,15 +117,6 @@ import-storage:
 	@echo "📂 Directory contents:"
 	@ls -la $(LOCAL_PATH) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
 
-install-shim:
-	@echo "Installing homelab network shim service..."
-	@if [ -z "$(INTERFACE)" ]; then echo "❌ Error: INTERFACE variable is required. Use: make install-shim INTERFACE=eth0"; exit 1; fi
-	@echo "🔧 Configuring shim service for interface: $(INTERFACE)"
-	@sed 's/INTERFACE/$(INTERFACE)/g' homelab-shim.service.tpl | sudo tee /etc/systemd/system/homelab-shim.service > /dev/null
-	sudo systemctl daemon-reload
-	sudo systemctl enable homelab-shim.service
-	sudo systemctl start homelab-shim.service
-	@echo "✅ Service installed, enabled, and started for interface $(INTERFACE)"
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."
@@ -194,19 +180,6 @@ lvm-init:
 	@sudo lvs homelab-vg
 	@df -h /srv/data
 
-network-down:
-	docker network rm homelab-macvlan || true
-
-network-up:
-	@if [ -z "$(INTERFACE)" ]; then echo "❌ Error: INTERFACE variable is required. Use: make network-up INTERFACE=eth0"; exit 1; fi
-	@echo "🔧 Creating macvlan network on interface: $(INTERFACE)"
-	docker network create -d macvlan \
-		--scope swarm \
-		--subnet=192.168.1.0/24 \
-		--gateway=192.168.1.1 \
-		--ip-range=192.168.1.192/26 \
-		-o parent=$(INTERFACE) \
-		homelab-macvlan || true
 
 list-services:
 	@echo "📋 Services for environment: $(ENV)"
@@ -241,17 +214,7 @@ node-label:
 
 provision-node:
 	@echo "🚀 Provisioning homelab node..."
-	@echo "Step 1: Installing systemd shim..."
-	@if [ -z "$(INTERFACE)" ]; then \
-		echo "🔍 Network interface required for shim installation."; \
-		echo "Available interfaces:"; \
-		ip link show | grep '^[0-9]' | cut -d: -f2 | tr -d ' ' | grep -v lo; \
-		read -p "Enter interface name (e.g., eth0, enp0s3): " interface; \
-		$(MAKE) install-shim INTERFACE=$$interface; \
-	else \
-		$(MAKE) install-shim INTERFACE=$(INTERFACE); \
-	fi
-	@echo "Step 2: Joining Docker Swarm..."
+	@echo "Step 1: Joining Docker Swarm..."
 	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
 		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
 	else \
@@ -265,7 +228,7 @@ provision-node:
 			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
 		fi; \
 	fi
-	@echo "Step 3: Node labeling..."
+	@echo "Step 2: Node labeling..."
 	@echo "⚠️  Node labels must be added from a manager node using:"
 	@echo "   make node-label NODE_ID=<node-id> LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"
 	@echo "   Use 'docker node ls' on manager to see node IDs"

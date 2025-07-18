@@ -2,66 +2,65 @@
 ## Infrastructure
 
 * Router - Standard home router with DHCP
-* Raspberry Pi (192.168.1.204) - Primary homelab node
+* Raspberry Pi (192.168.1.204) - Primary homelab node running Traefik reverse proxy
 * N100 Machine (192.168.1.10) - High-performance compute node
-* macvlan shim (192.168.1.254) - Gives containers their own IPs in the network
+* Docker Swarm - Overlay network for internal service communication
 
 ## Network Design
-### IP Address Allocation
-DHCP Range (dynamic devices):     192.168.1.2 - 192.168.1.191
-Container Ranges:
-├── Production:                   192.168.1.192 - 192.168.1.223 (/27)
-└── Preprod:                     192.168.1.224 - 192.168.1.249 (/27)
 
-Infrastructure (reserved):        192.168.1.250 - 192.168.1.255
-├── macvlan shim:                192.168.1.254
-└── Future network tools:        192.168.1.250 - 192.168.1.253
+### Dual-Environment Architecture with Traefik
 
-## Network Management
+The homelab uses a dual-environment architecture with separate Traefik instances:
 
-The network infrastructure is managed separately from application services using macvlan networks that provide containers with direct IP addresses on the local network.
+**Production Environment (.home domain):**
+- **Location**: Raspberry Pi (192.168.1.204)
+- **Traefik Instance**: Production Traefik on Pi
+- **DNS**: `*.home` → 192.168.1.204
+- **Services**: Production services with stable configurations
 
-### Systemd Network Shim
+**Preprod Environment (.preprod.home domain):**
+- **Location**: N100 Machine (192.168.1.10)  
+- **Traefik Instance**: Preprod Traefik on N100
+- **DNS**: `*.preprod.home` → 192.168.1.10
+- **Services**: Development/testing services
 
-A network "shim" is an intermediary layer that bridges communication between different network segments. In this homelab setup, the `homelab-shim.service` systemd unit creates a persistent macvlan interface that acts as a gateway between the host system and containerized services.
+### Benefits of This Approach
 
-**Why a shim is needed:**
-- Docker's macvlan networks isolate containers from the host by default
-- The host cannot directly communicate with containers on macvlan networks
-- The shim creates a bridge interface that enables host-to-container communication
-- Without the shim, the host would be unable to reach services running in containers
+- **Complete Environment Isolation**: Production and preprod are completely separate
+- **Safe Experimentation**: Can test new configurations without affecting production
+- **Independent Traefik Configs**: Each environment can have different Traefik settings
+- **Clear Service Organization**: Easy to understand which environment you're accessing
+- **Automatic Service Discovery**: Traefik discovers services via Docker Swarm labels
+- **SSL Termination**: Each Traefik instance handles SSL for its domain
 
-The service runs four commands in sequence to establish this bridge:
+### Service Access Patterns
 
-1. **Create macvlan interface**: `ip link add homelab-shim link eth0 type macvlan mode bridge`
-   - Creates a macvlan interface named "homelab-shim" linked to the host's eth0 interface
-   - Uses bridge mode to allow communication between macvlan interfaces
+**Production Services:**
+```
+External Request → Pi (192.168.1.204) → Production Traefik → Docker Swarm Service
+```
+- `jellyfin.home` → Pi IP → Production Traefik → Production Jellyfin
+- `pihole.home` → Pi IP → Production Traefik → Production Pi-hole
 
-2. **Assign IP address**: `ip addr add 192.168.1.254/32 dev homelab-shim`
-   - Assigns the reserved IP address 192.168.1.254 to the shim interface
-   - Uses /32 subnet mask (single host) - this IP acts as the host's presence on the container network
+**Preprod Services:**
+```
+External Request → N100 (192.168.1.10) → Preprod Traefik → Docker Swarm Service  
+```
+- `jellyfin.preprod.home` → N100 IP → Preprod Traefik → Preprod Jellyfin
+- `pihole.preprod.home` → N100 IP → Preprod Traefik → Preprod Pi-hole
 
-3. **Bring interface up**: `ip link set homelab-shim up`
-   - Activates the network interface
-
-4. **Add routing**: `ip route add 192.168.1.192/26 dev homelab-shim`
-   - Routes the container subnet (192.168.1.192-255) through the shim interface
-   - Tells the host kernel how to reach container IPs
-
-The service automatically starts after network initialization and removes the interface on stop (`ExecStop=/sbin/ip link del homelab-shim`).
-
-### Commands
+## Docker Swarm Commands
 
 ```bash
-# Start network infrastructure (creates macvlan networks)
-make network-up
+# Initialize swarm on manager node (Pi)
+make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=small
 
-# Stop network infrastructure  
-make network-down
+# Join worker nodes
+make swarm-join MANAGER_IP=192.168.1.204 TOKEN=<token>
 
-# Start services (requires network to be up first)
-make env-up [ENV=prod|preprod]
+# Deploy services
+make env-up ENV=prod
 
-# Stop services
-make env-down [ENV=prod|preprod]
+# Scale services
+make service-down SERVICE=jellyfin ENV=prod
 ```
