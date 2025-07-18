@@ -47,22 +47,10 @@ services:
       - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     ports:
-      - target: 8096
-        published: 8096
-        protocol: tcp
-        mode: host
-      - target: 8920
-        published: 8920
-        protocol: tcp
-        mode: host
-      - target: 1900
-        published: 1900
-        protocol: udp
-        mode: host
-      - target: 7359
-        published: 7359
-        protocol: udp
-        mode: host
+      - "8096:8096"
+      - "8920:8920"
+      - "1900:1900/udp"
+      - "7359:7359/udp"
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
@@ -115,18 +103,9 @@ services:
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
     ports:
-      - target: 80
-        published: 80
-        protocol: tcp
-        mode: host
-      - target: 443
-        published: 443
-        protocol: tcp
-        mode: host
-      - target: 8080
-        published: 8080
-        protocol: tcp
-        mode: host
+      - "80:80"
+      - "443:443"
+      - "8080:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
