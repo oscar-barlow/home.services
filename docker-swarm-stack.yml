@@ -40,11 +40,12 @@ services:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
-      - /tmp/var/${ENV_NAME}/jellyfin/tmp:/tmp/jellyfin
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
       - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
+    tmpfs:
+      - /tmp/jellyfin
     networks:
       homelab-macvlan:
         ipv4_address: ${JELLYFIN_IP}
