@@ -16,7 +16,6 @@ services:
     volumes:
       - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
       - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
-      - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     cap_add:
       - NET_ADMIN  # Required for Pi-hole to function properly
     restart: unless-stopped
@@ -33,12 +32,13 @@ services:
     container_name: jellyfin-${ENV_NAME}
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
-      - ./jellyfin/${ENV_NAME}/config:/config
-      - ./jellyfin/${ENV_NAME}/cache:/cache
-      - ./jellyfin/${ENV_NAME}/tmp:/tmp/jellyfin
+      - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
+      - /srv/data/${ENV_NAME}/jellyfin/config:/config
       - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
+    tmpfs:
+      - /tmp/jellyfin
     restart: 'unless-stopped'
     networks:
       homelab_macvlan:
