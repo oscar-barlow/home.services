@@ -14,8 +14,8 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
     volumes:
-      - './pihole/${ENV_NAME}/etc/pihole:/etc/pihole'
-      - './pihole/${ENV_NAME}/etc/dnsmasq.d:/etc/dnsmasq.d'
+      - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
+      - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
       - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
     cap_add:
       - NET_ADMIN  # Required for Pi-hole to function properly
