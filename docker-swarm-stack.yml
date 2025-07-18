@@ -13,7 +13,6 @@ services:
     environment:
       TZ: 'Europe/London'
       WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
-      FTLCONF_local_ipv4: '${PIHOLE_IP}'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
@@ -48,8 +47,14 @@ services:
       - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     ports:
-      - "80:80"
-      - "8096:8096"
+      - target: 80
+        published: 80
+        protocol: tcp
+        mode: host
+      - target: 8096
+        published: 8096
+        protocol: tcp
+        mode: host
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
