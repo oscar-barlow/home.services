@@ -14,9 +14,8 @@ services:
     environment:
       TZ: 'Europe/London'
       WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
-      FTLCONF_local_ipv4: '${PIHOLE_IP}'
       FTLCONF_dns_listeningMode: 'all'
-      FTLCONF_misc_etc_dnsmasq_d: 'true'  # Required for migration from v5
+      FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
       - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
       - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
@@ -40,8 +39,10 @@ services:
       - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
       - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     ports:
-      - "80:80"
       - "8096:8096"
+      - "8920:8920"
+      - "1900:1900/udp"
+      - "7359:7359/udp"
     volumes:
       - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
