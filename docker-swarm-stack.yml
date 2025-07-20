@@ -12,8 +12,8 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
-      - './pihole/${ENV_NAME}/etc/pihole:/etc/pihole'
-      - './pihole/${ENV_NAME}/etc/dnsmasq.d:/etc/dnsmasq.d'
+      - '/root/Projects/home.services/pihole/${ENV_NAME}/etc/pihole:/etc/pihole'
+      - '/root/Projects/home.services/pihole/${ENV_NAME}/etc/dnsmasq.d:/etc/dnsmasq.d'
     ports:
       - "${PIHOLE_DNS_PORT}:53/tcp"
       - "${PIHOLE_DNS_PORT}:53/udp"
