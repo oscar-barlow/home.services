@@ -18,6 +18,9 @@ services:
     volumes:
       - '/srv/data/${ENV_NAME}/pihole/etc/pihole:/etc/pihole'
       - '/srv/data/${ENV_NAME}/pihole/etc/dnsmasq.d:/etc/dnsmasq.d'
+    ports:
+      - "${PIHOLE_DNS_PORT}:53/tcp"
+      - "${PIHOLE_DNS_PORT}:53/udp"
     cap_add:
       - NET_ADMIN
     logging:
