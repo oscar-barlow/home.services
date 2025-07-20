@@ -1,6 +1,10 @@
 # env
-.env.*
-!.env.example
+env/.env.*
+!env/.env.example
 
-# generated swarm config files (may contain secrets)
-docker-swarm-stack.*.yml
+# Pi-hole local configuration - exclude cache and runtime config, keep version-controlled files
+pihole/*/etc/pihole/*
+!pihole/*/etc/pihole/pihole.toml
+
+pihole/*/etc/dnsmasq.d/*
+!pihole/*/etc/dnsmasq.d/02-custom-dns.conf

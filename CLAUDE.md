@@ -19,16 +19,15 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media
 
-## File Synchronization
-- **CRITICAL**: Always keep `docker-compose.application.yml` and `docker-swarm-stack.yml` in sync
-- `docker-swarm-stack.yml` is the definitive source of truth for service configurations
-- When making changes to services, update the swarm stack file first, then sync changes to compose file
-- Both files must have identical service configurations (volumes, environment, networks, etc.)
-- The compose file may have additional fields like `container_name` and `restart` that don't apply to swarm
+## Configuration Management
+- `docker-swarm-stack.yml` is the single source of truth for all service configurations
+- Service replicas are controlled via environment variables in env/.env.{ENV_NAME} files
+- Use `make env-up ENV=prod` or `make env-up ENV=preprod` to deploy specific environments
 
 ## Repository Structure
+- `docker-swarm-stack.yml` - Main service stack configuration
+- `env/` - Environment-specific configuration files (.env.prod, .env.preprod)
 - Service configurations are organized by component (nginx, pihole, jellyfin)
-- Each service has its own configuration directory
 - Container persistence volumes are mapped to local directories
 
 ## Allowed External Resources
