@@ -6,10 +6,6 @@ networks:
 services:
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.services.pihole.loadbalancer.server.port=80"
     environment:
       TZ: 'Europe/London'
       WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
@@ -31,6 +27,10 @@ services:
     networks:
       - homelab-overlay
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.pihole.loadbalancer.server.port=80"
       restart_policy:
         condition: on-failure
       placement:
@@ -44,10 +44,6 @@ services:
 
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
     ports:
       - "${JELLYFIN_HTTP_PORT}:8096"
       - "${JELLYFIN_HTTPS_PORT}:8920"
@@ -64,6 +60,10 @@ services:
     networks:
       - homelab-overlay
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
       restart_policy:
         condition: on-failure
       placement:
@@ -77,15 +77,15 @@ services:
 
   hello-world:
     image: nginx:${HELLO_WORLD_VERSION}
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.hello-world.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
-      - "traefik.http.services.hello-world.loadbalancer.server.port=80"
     volumes:
       - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:
       - homelab-overlay
     deploy:
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.hello-world.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.hello-world.loadbalancer.server.port=80"
       restart_policy:
         condition: on-failure
       resources:
