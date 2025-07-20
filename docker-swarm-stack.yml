@@ -29,8 +29,8 @@ services:
     deploy:
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.pihole.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.pihole.loadbalancer.server.port=80"
+        - "traefik.http.routers.pihole-${ENV_NAME}.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.pihole-${ENV_NAME}.loadbalancer.server.port=80"
       restart_policy:
         condition: on-failure
       placement:
@@ -62,8 +62,8 @@ services:
     deploy:
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.jellyfin.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.jellyfin.loadbalancer.server.port=8096"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.jellyfin-${ENV_NAME}.loadbalancer.server.port=8096"
       restart_policy:
         condition: on-failure
       placement:
@@ -84,8 +84,8 @@ services:
     deploy:
       labels:
         - "traefik.enable=true"
-        - "traefik.http.routers.hello-world.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.hello-world.loadbalancer.server.port=80"
+        - "traefik.http.routers.hello-world-${ENV_NAME}.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.hello-world-${ENV_NAME}.loadbalancer.server.port=80"
       restart_policy:
         condition: on-failure
       resources:
