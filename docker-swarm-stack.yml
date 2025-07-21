@@ -151,3 +151,29 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+
+  kavita:
+    image: jvmilazz0/kavita:${KAVITA_VERSION}
+    volumes:
+      - /srv/data/${ENV_NAME}/kavita/Books:/books
+      - /srv/data/${ENV_NAME}/kavita/config:/kavita/config
+    environment:
+      TZ: 'Europe/London'
+    networks:
+      - homelab-overlay
+    deploy:
+      replicas: ${KAVITA_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.kavita-${ENV_NAME}.loadbalancer.server.port=5000"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
