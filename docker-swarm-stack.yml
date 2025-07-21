@@ -129,8 +129,8 @@ services:
     image: ghcr.io/advplyr/audiobookshelf:${AUDIOBOOKSHELF_VERSION}
     volumes:
       - /srv/data/${ENV_NAME}/audiobookshelf/Audiobooks:/audiobooks
-      - /srv/data/${ENV_NAME}/audiobookshelf/Config:/config
-      - /srv/data/${ENV_NAME}/audiobookshelf/Metadata:/metadata
+      - /srv/data/${ENV_NAME}/audiobookshelf/config:/config
+      - /srv/data/${ENV_NAME}/audiobookshelf/metadata:/metadata
     environment:
       TZ: 'Europe/London'
     networks:
