@@ -118,7 +118,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.labels.hardware == ${TRAEFIK_NODE_HARDWARE}
+          - node.labels.hardware == rpi-3
       resources:
         limits:
           memory: 256M
