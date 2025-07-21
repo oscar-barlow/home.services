@@ -1,160 +1,105 @@
 # DNS Management
 
-This document explains how to manage DNS configuration in your homelab setup.
+Unified DNS architecture using single Pi-hole instance with Traefik reverse proxy for all environments.
 
-## Overview
+## Architecture Overview
 
-DNS configuration is managed through static configuration files located in the `dns/` directory. Each environment (prod, preprod, etc.) has its own DNS configuration file that gets mounted directly into the Pi-hole container.
-
-The setup uses Docker's macvlan networking to assign containers static IP addresses on your local network. For detailed network architecture, see [network.md](network.md).
-
-## Directory Structure
-
-```
-dns/
-├── example/
-│   └── custom-dns.conf    # Example configuration (tracked in git)
-├── prod/
-│   └── custom-dns.conf    # Production DNS config (ignored by git)
-└── preprod/
-│   └── custom-dns.conf    # Pre-production DNS config (ignored by git)
-```
+**Single Pi-hole**: Handles DNS for all environments with direct port 53 exposure
+**Single Traefik**: Reverse proxy on production node routing all HTTP traffic
+**Unified Swarm**: All environments run in same Docker Swarm with label-based routing
 
 ## How It Works
 
-1. **Container Networking**: Each service container gets a static IP on your LAN via macvlan (see [network.md](network.md))
-2. **DNS Mounting**: The `docker-compose.application.yml` file mounts the appropriate DNS config based on the `ENV_NAME` environment variable:
-   ```yaml
-   - './dns/${ENV_NAME}/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
-   ```
-3. **Environment Selection**: When you start services with `docker-compose --env-file env/.env.prod up`, it automatically uses the production DNS config and IPs
-4. **Direct Resolution**: Pi-hole resolves domain names to the static IPs assigned to containers
+1. All domains (`*.home`, `*.preprod.home`) route to the machine running Traefik
+2. Pi-hole provides DNS resolution, Traefik handles HTTP routing
+3. Traefik uses service labels with `${ENV_NAME}` suffix for environment separation
+4. Services distinguished by labels: `service-prod` vs `service-preprod`
 
-## Managing DNS Records
+## Port Strategy
+
+**Pi-hole**:
+- Port 53 (DNS): Direct exposure (DNS protocol requirement)  
+- Web interface: HTTP proxied through Traefik
+
+**All other services**: HTTP traffic proxied through Traefik on ports 80/443
+
+**Why this architecture**:
+- Centralized DNS and reverse proxy management
+- Environment isolation via service labels, not infrastructure
+- Simplified networking with single entry point
+
+## DNS Configuration
+
+DNS uses wildcard domain routing - both `*.home` and `*.preprod.home` resolve to the same machine where Traefik is running. Environment separation happens at the Traefik routing layer using service labels.
 
 ### Adding New Services
 
-To add a new service to your DNS:
+No DNS changes needed:
 
-1. **Choose an available IP** from your environment's IP range (see [network.md](network.md) for allocations)
-2. **Update the environment file** with the new service's IP:
-   ```bash
-   vim env/.env.prod
-   ```
-   Add: `NEW_SERVICE_IP=192.168.1.196`
+1. Add service to `docker-swarm-stack.yml` with Traefik labels including `${ENV_NAME}`
+2. Deploy: `make env-up ENV=prod` or `make env-up ENV=preprod` 
+3. Access automatically via `service.home` or `service.preprod.home`
 
-3. **Edit the DNS configuration**:
-   ```bash
-   vim dns/prod/custom-dns.conf
-   ```
-   Add: `address=/newservice.home/192.168.1.196`
+### Adding New Environments
 
-4. **Update docker-compose.application.yml** to assign the static IP:
-   ```yaml
-   newservice:
-     networks:
-       homelab_macvlan:
-         ipv4_address: ${NEW_SERVICE_IP}
-   ```
+1. Add domain to DNS config routing to the Traefik machine
+2. Create environment file: `env/.env.newenv` with `ENV_NAME=newenv`
+3. Deploy: `make env-up ENV=newenv`
 
-5. **Restart services**:
-   ```bash
-   make service-up SERVICE=pihole
-   ```
-
-### Configuration Format
-
-The `custom-dns.conf` file uses dnsmasq configuration syntax:
-
-```bash
-# Set local domain
-local=/home/
-
-# Ignore reverse DNS for private ranges
-bogus-priv
-
-# Service DNS records - map hostnames to static container IPs
-address=/jellyfin.home/192.168.1.193
-address=/pi.hole.home/192.168.1.192
-```
-
-### Environment-Specific Domains
-
-- **Production**: Uses `.home` domain (e.g., `jellyfin.home`)
-- **Pre-production**: Uses `.preprod.home` domain (e.g., `jellyfin.preprod.home`)
-
-For IP ranges, see [network.md](network.md).
-
-## Creating New Environments
-
-To add a new environment:
-
-1. **Plan IP allocation** using ranges from [network.md](network.md)
-2. **Create the DNS directory**:
-   ```bash
-   mkdir dns/staging
-   ```
-3. **Create the DNS configuration**:
-   ```bash
-   cp dns/example/custom-dns.conf dns/staging/custom-dns.conf
-   vim dns/staging/custom-dns.conf
-   ```
-4. **Create the environment file**:
-   ```bash
-   cp env/.env.example env/.env.staging
-   vim env/.env.staging
-   ```
-5. **Set environment-specific values** including `ENV_NAME=staging` and unique IP addresses
+All services automatically work via `service.newenv.home` - Traefik handles routing based on service labels.
 
 ## Troubleshooting
 
 ### DNS Not Working
 
-1. **Check if the config file exists:**
+1. **Check if the config file is mounted:**
    ```bash
-   ls -la dns/${ENV_NAME}/custom-dns.conf
+   # Get Pi-hole container ID
+   docker service ps homelab-${ENV_NAME}_pihole
+   docker exec <container-id> cat /etc/dnsmasq.d/02-custom-dns.conf
    ```
 
-2. **Verify container has correct IP:**
+2. **Verify DNS resolution:**
    ```bash
-   docker inspect pihole-${ENV_NAME} | grep IPAddress
+   # Test from your local machine
+   nslookup jellyfin.home 192.168.1.204  # Production Pi-hole
+   nslookup jellyfin.preprod.home 192.168.1.11  # Preprod Pi-hole
    ```
 
-3. **Verify the container mount:**
+3. **Check service logs:**
    ```bash
-   docker exec pihole-${ENV_NAME} cat /etc/dnsmasq.d/02-custom-dns.conf
+   docker service logs homelab-${ENV_NAME}_pihole
    ```
 
-4. **Check dnsmasq logs:**
+4. **Restart Pi-hole:**
    ```bash
-   docker logs pihole-${ENV_NAME} | grep dnsmasq
+   make service-down SERVICE=pihole ENV=${ENV_NAME}
+   make env-up ENV=${ENV_NAME}
    ```
 
-5. **Restart Pi-hole:**
-   ```bash
-   docker-compose restart pihole
-   ```
+### Traefik Not Routing
 
-### Network Connectivity Issues
+1. **Check Traefik dashboard** (if enabled)
+2. **Verify service labels** in docker-swarm-stack.yml
+3. **Check Traefik logs** for routing issues
 
-For network troubleshooting, see [network.md](network.md).
-
-### Testing DNS Resolution
+### Testing Access
 
 ```bash
-# Test from your local machine
-nslookup jellyfin.home 192.168.1.192
+# Test DNS resolution
+nslookup jellyfin.home
 
-# Test from inside the Pi-hole container
-docker exec pihole-${ENV_NAME} nslookup jellyfin.home localhost
-
-# Test direct container access
-curl http://192.168.1.193:8096  # Direct Jellyfin access
+# Test end-to-end access
+curl -H "Host: jellyfin.home" http://192.168.1.204
 ```
 
-## Git Management
+## Version Control
 
-- Only `dns/example/` is tracked in git
-- All other environment-specific configs are ignored  
-- This keeps sensitive production IPs out of version control
-- Use the example as a template for new environments
+The DNS configuration is now version-controlled in this repository:
+
+- **File**: `dns/custom-dns.conf`
+- **Changes**: Commit changes to DNS config like any other code
+- **Deployment**: Changes take effect when Pi-hole restarts
+- **Rollback**: Use git to revert DNS changes if needed
+
+This approach provides full change tracking and rollback capability for DNS configuration.

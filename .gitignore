@@ -1,27 +1,10 @@
-# pihole
-etc-dnsmasq.d
-etc-pihole/
-pihole/*/
-
 # env
-.env.*
-!.env.example
+env/.env.*
+!env/.env.example
 
-# plex
-plex/config/
-plex/media
+# Pi-hole local configuration - exclude cache and runtime config, keep version-controlled files
+pihole/*/etc/pihole/*
+!pihole/*/etc/pihole/pihole.toml
 
-# jellyfin
-jellyfin/prod/
-jellyfin/preprod/
-
-# kavita
-kavita/prod/
-kavita/preprod/
-
-# dns
-dns/*
-!dns/example/
-
-# Allow all .gitkeep files
-!**/.gitkeep
+pihole/*/etc/dnsmasq.d/*
+!pihole/*/etc/dnsmasq.d/02-custom-dns.conf

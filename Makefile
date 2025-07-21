@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage install-shim lvm-extend lvm-init network-down network-up provision-node service-down service-up swarm-init swarm-join users-create users-remove users-verify
+.PHONY: env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -10,37 +10,57 @@ help:
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
-	@echo "  install-shim   - Install systemd network shim service"
+	@echo "  inspect-node   - Inspect Docker Swarm node details (requires HOSTNAME)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
-	@echo "  network-down   - Stop network services"
-	@echo "  network-up     - Start network services"
-	@echo "  provision-node - Complete node setup (users, shim, docker swarm)"
+	@echo "  list-services  - List services for ENV (default: preprod)"
+	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
+	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
-	@echo "  service-up     - Start specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
-	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN, optional: LABEL_HARDWARE, LABEL_CLASS)"
-	@echo "  users-create   - Create prod/preprod users and groups on current node"
-	@echo "  users-remove   - Remove prod/preprod users and groups from current node"
-	@echo "  users-verify   - Verify user/group consistency on current node"
+	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
+	@echo "  swarm-deploy   - Deploy stack to Docker Swarm for ENV (default: preprod)"
+	@echo "  swarm-down     - Remove stack from Docker Swarm for ENV (default: preprod)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
-	@echo "  make service-up ENV=prod SERVICE=jellyfin"
+	@echo "  make service-down ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
+	@echo "  make inspect-node HOSTNAME=rpi-3-0"
+	@echo "  make list-services ENV=prod"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
+	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
-	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
-	@echo "  make users-create"
+	@echo "  make swarm-deploy ENV=prod"
 
 env-down:
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) down
+	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if stack exists..."
+	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
+		echo "📦 Removing homelab-$(ENV) stack..."; \
+		docker stack rm homelab-$(ENV); \
+		echo "✅ Stack removal complete!"; \
+	else \
+		echo "⚠️  Stack homelab-$(ENV) not found"; \
+	fi
 
 env-up:
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d
+	@echo "🚀 Deploying stack to Docker Swarm for environment: $(ENV)"
+	@echo "🔍 Checking if swarm is initialized..."
+	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
+		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
+		exit 1; \
+	fi
+	@echo "📦 Generating resolved config file..."
+	export $$(cat env/.env.$(ENV) | xargs) && envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
+	@echo "📦 Deploying homelab stack..."
+	docker stack deploy --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
+	@echo "✅ Stack deployment complete!"
+	@echo "📋 Current services:"
+	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
 export-storage:
 	@echo "📦 Starting NFS storage export process..."
@@ -99,13 +119,31 @@ import-storage:
 	@echo "📂 Directory contents:"
 	@ls -la $(LOCAL_PATH) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
 
-install-shim:
-	@echo "Installing homelab network shim service..."
-	sudo cp homelab-shim.service /etc/systemd/system/
-	sudo systemctl daemon-reload
-	sudo systemctl enable homelab-shim.service
-	sudo systemctl start homelab-shim.service
-	@echo "Service installed, enabled, and started."
+inspect-node:
+	@echo "🔍 Inspecting Docker Swarm node..."
+	@if [ -z "$(HOSTNAME)" ]; then echo "❌ Error: HOSTNAME variable is required. Use: make inspect-node HOSTNAME=rpi-3-0"; exit 1; fi
+	@echo "🔍 Checking if this is a manager node..."
+	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
+		echo "❌ Error: This command must be run from a swarm manager node."; \
+		exit 1; \
+	fi
+	@echo "📋 Finding node by hostname: $(HOSTNAME)"
+	@NODE_ID=$$(docker node ls --format '{{.ID}} {{.Hostname}}' | grep '$(HOSTNAME)' | awk '{print $$1}' | head -1); \
+	if [ -z "$$NODE_ID" ]; then \
+		echo "❌ Error: Node with hostname '$(HOSTNAME)' not found."; \
+		echo "📋 Available nodes:"; \
+		docker node ls --format "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}"; \
+		exit 1; \
+	fi; \
+	echo "✅ Found node: $$NODE_ID"; \
+	echo "📋 Node details:"; \
+	docker node inspect $$NODE_ID --format '{{.Description.Hostname}} ({{.ID}}): {{range $$k,$$v := .Spec.Labels}}{{$$k}}={{$$v}} {{end}}'; \
+	echo "📊 Node status: $$(docker node inspect $$NODE_ID --format '{{.Status.State}}')" ; \
+	echo "🏷️  Node availability: $$(docker node inspect $$NODE_ID --format '{{.Spec.Availability}}')" ; \
+	echo "🏛️  Node role: $$(docker node inspect $$NODE_ID --format '{{.Spec.Role}}')" ; \
+	echo "📍 Node address: $$(docker node inspect $$NODE_ID --format '{{.Status.Addr}}')" ; \
+	echo "🖥️  Platform: $$(docker node inspect $$NODE_ID --format '{{.Description.Platform.OS}}/{{.Description.Platform.Architecture}}')" ; \
+	echo "🔧 Docker version: $$(docker node inspect $$NODE_ID --format '{{.Description.Engine.EngineVersion}}')"
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."
@@ -161,51 +199,78 @@ lvm-init:
 	@if ! grep -q "/dev/homelab-vg/data-lv" /etc/fstab 2>/dev/null; then \
 		echo '/dev/homelab-vg/data-lv /srv/data ext4 defaults 0 2' | sudo tee -a /etc/fstab; \
 	fi
-	@echo "👥 Creating environment directories with proper ownership..."
+	@echo "📁 Creating environment directories..."
 	sudo mkdir -p /srv/data/prod /srv/data/preprod
-	sudo chown -R 5001:5001 /srv/data/prod
-	sudo chown -R 6001:6001 /srv/data/preprod
 	@echo "✅ LVM initialization complete!"
 	@echo "📊 Storage summary:"
 	@sudo vgs homelab-vg
 	@sudo lvs homelab-vg
 	@df -h /srv/data
 
-network-down:
-	docker network rm homelab-macvlan || true
 
-network-up:
-	docker network create -d macvlan \
-		--subnet=192.168.1.0/24 \
-		--gateway=192.168.1.1 \
-		--ip-range=192.168.1.192/26 \
-		-o parent=eth0 \
-		homelab-macvlan || true
+list-services:
+	@echo "📋 Services for environment: $(ENV)"
+	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
+
+node-label:
+	@echo "🏷️ Adding labels to swarm node..."
+	@if [ -z "$(NODE_ID)" ]; then echo "❌ Error: NODE_ID variable is required. Use: make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"; exit 1; fi
+	@echo "🔍 Checking if this is a manager node..."
+	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
+		echo "❌ Error: This command must be run from a swarm manager node."; \
+		exit 1; \
+	fi
+	@echo "📋 Verifying node $(NODE_ID) exists..."
+	@if ! docker node inspect $(NODE_ID) >/dev/null 2>&1; then \
+		echo "❌ Error: Node $(NODE_ID) not found."; \
+		echo "   Available nodes:"; \
+		docker node ls --format "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}"; \
+		exit 1; \
+	fi
+	@if [ -n "$(LABEL_HARDWARE)" ]; then \
+		echo "🔧 Adding hardware label 'hardware=$(LABEL_HARDWARE)'..."; \
+		docker node update --label-add hardware=$(LABEL_HARDWARE) $(NODE_ID); \
+	fi
+	@if [ -n "$(LABEL_CLASS)" ]; then \
+		echo "🔧 Adding class label 'class=$(LABEL_CLASS)'..."; \
+		docker node update --label-add class=$(LABEL_CLASS) $(NODE_ID); \
+	fi
+	@echo "✅ Node labeling complete!"
+	@echo "📋 Node details:"
+	@docker node inspect $(NODE_ID) --format 'Node: {{.Description.Hostname}} ({{.ID}}){{range $$k, $$v := .Spec.Labels}}{{printf "\n  %s: %s" $$k $$v}}{{end}}'
 
 provision-node:
 	@echo "🚀 Provisioning homelab node..."
-	@echo "Step 1: Creating users and groups..."
-	@$(MAKE) users-create
-	@echo "Step 2: Installing systemd shim..."
-	@$(MAKE) install-shim
-	@echo "Step 3: Verifying setup..."
-	@$(MAKE) users-verify
-	@echo "Step 4: Joining Docker Swarm..."
+	@echo "Step 1: Joining Docker Swarm..."
 	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
 		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
 	else \
-		echo "⚠️  Skipping swarm join - MANAGER_IP and TOKEN not provided"; \
-		echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
+		echo "🔍 Docker Swarm join parameters needed."; \
+		read -p "Enter manager IP (or press Enter to skip): " manager_ip; \
+		if [ -n "$$manager_ip" ]; then \
+			read -p "Enter join token: " token; \
+			$(MAKE) swarm-join MANAGER_IP=$$manager_ip TOKEN=$$token; \
+		else \
+			echo "⚠️  Skipping swarm join"; \
+			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
+		fi; \
 	fi
+	@echo "Step 2: Node labeling..."
+	@echo "⚠️  Node labels must be added from a manager node using:"
+	@echo "   make node-label NODE_ID=<node-id> LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"
+	@echo "   Use 'docker node ls' on manager to see node IDs"
 	@echo "✅ Node provisioning complete!"
 
 service-down:
 	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-down SERVICE=servicename"; exit 1; fi
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) stop $(SERVICE)
+	@echo "🛑 Scaling $(SERVICE) to 0 replicas in homelab-$(ENV) stack..."
+	@if docker service ls --filter name=homelab-$(ENV)_$(SERVICE) --format "{{.Name}}" | grep -q "homelab-$(ENV)_$(SERVICE)"; then \
+		docker service scale homelab-$(ENV)_$(SERVICE)=0; \
+		echo "✅ Service $(SERVICE) scaled to 0 replicas"; \
+	else \
+		echo "⚠️  Service homelab-$(ENV)_$(SERVICE) not found"; \
+	fi
 
-service-up:
-	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-up SERVICE=servicename"; exit 1; fi
-	docker compose -f docker-compose.application.yml --env-file env/.env.$(ENV) up -d $(SERVICE)
 
 swarm-init:
 	@echo "🚀 Initializing Docker Swarm on this node as manager..."
@@ -258,60 +323,14 @@ swarm-join:
 		docker swarm join --token $(TOKEN) $(MANAGER_IP):2377; \
 		echo "✅ Successfully joined swarm!"; \
 		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		if [ -n "$(LABEL_HARDWARE)" ]; then \
-			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to worker node..."; \
-			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_CLASS)" ]; then \
-			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to worker node..."; \
-			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
-			echo "✅ Labels added successfully!"; \
-		fi; \
+		echo "📋 Node ID: $$NODE_ID"; \
+		echo "⚠️  To add labels, run from a manager node:"; \
+		echo "   make node-label NODE_ID=$$NODE_ID LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"; \
 	else \
 		echo "✅ Node is already part of a swarm"; \
-		docker info --format '{{.Swarm.NodeID}} {{.Swarm.NodeAddr}}'; \
 		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		if [ -n "$(LABEL_HARDWARE)" ]; then \
-			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to current node..."; \
-			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_CLASS)" ]; then \
-			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to current node..."; \
-			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
-			echo "✅ Labels added successfully!"; \
-		fi; \
+		echo "📋 Node ID: $$NODE_ID (Address: $$(docker info --format '{{.Swarm.NodeAddr}}'))"; \
+		echo "⚠️  To add/update labels, run from a manager node:"; \
+		echo "   make node-label NODE_ID=$$NODE_ID LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"; \
 	fi
 
-users-create:
-	@echo "Creating prod/preprod users and groups on current node..."
-	@echo "Creating groups..."
-	sudo groupadd -g 5001 prod || echo "Group 'prod' already exists"
-	sudo groupadd -g 6001 preprod || echo "Group 'preprod' already exists"
-	@echo "Creating users..."
-	sudo useradd -u 5001 -g 5001 -m -s /bin/bash prod-user || echo "User 'prod-user' already exists"
-	sudo useradd -u 6001 -g 6001 -m -s /bin/bash preprod-user || echo "User 'preprod-user' already exists"
-	@echo "Users and groups created successfully!"
-
-users-remove:
-	@echo "Removing prod/preprod users and groups from current node..."
-	@echo "WARNING: This will remove users and their home directories!"
-	@read -p "Are you sure? (y/N): " confirm && [ "$$confirm" = "y" ] || exit 1
-	sudo userdel -r prod-user || echo "User 'prod-user' not found"
-	sudo userdel -r preprod-user || echo "User 'preprod-user' not found"
-	sudo groupdel prod || echo "Group 'prod' not found"
-	sudo groupdel preprod || echo "Group 'preprod' not found"
-	@echo "Users and groups removed successfully!"
-
-users-verify:
-	@echo "Verifying user/group consistency on current node..."
-	@echo "Production environment (UID/GID 5001):"
-	@id prod-user 2>/dev/null || echo "  ERROR: prod-user not found"
-	@getent group prod 2>/dev/null || echo "  ERROR: prod group not found"
-	@echo "Preprod environment (UID/GID 6001):"
-	@id preprod-user 2>/dev/null || echo "  ERROR: preprod-user not found"
-	@getent group preprod 2>/dev/null || echo "  ERROR: preprod group not found"
-	@echo "Verification complete!"
