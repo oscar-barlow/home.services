@@ -1,106 +1,52 @@
 # DNS Management
 
-This document explains how to manage DNS configuration in your Docker Swarm homelab setup.
+Unified DNS architecture using single Pi-hole instance with Traefik reverse proxy for all environments.
 
-## Overview
+## Architecture Overview
 
-DNS configuration is managed through version-controlled files in this repository. A single `dns/custom-dns.conf` file defines the DNS routing for both production and preprod environments using Traefik reverse proxy architecture.
-
-The setup uses Docker Swarm overlay networks with Traefik reverse proxies handling service routing. For detailed network architecture, see [network.md](network.md).
-
-## Configuration Structure
-
-DNS configuration is stored in the repository and mounted to Pi-hole:
-
-```
-dns/
-└── custom-dns.conf    # Single DNS config for all environments
-```
-
-This file gets mounted to both production and preprod Pi-hole instances via:
-```yaml
-- './dns/custom-dns.conf:/etc/dnsmasq.d/02-custom-dns.conf'
-```
+**Single Pi-hole**: Handles DNS for all environments with direct port 53 exposure
+**Single Traefik**: Reverse proxy on production node routing all HTTP traffic
+**Unified Swarm**: All environments run in same Docker Swarm with label-based routing
 
 ## How It Works
 
-1. **Version-Controlled DNS**: Single DNS config file tracked in git
-2. **Traefik Routing**: DNS routes domains to Traefik instances, Traefik routes to services
-3. **Environment Separation**: Different domains route to different Traefik instances
-   - `*.home` → Pi (192.168.1.204) → Production Traefik
-   - `*.preprod.home` → N100 (192.168.1.11) → Preprod Traefik
+1. All domains (`*.home`, `*.preprod.home`) route to the machine running Traefik
+2. Pi-hole provides DNS resolution, Traefik handles HTTP routing
+3. Traefik uses service labels with `${ENV_NAME}` suffix for environment separation
+4. Services distinguished by labels: `service-prod` vs `service-preprod`
 
-## Managing DNS Records
+## Port Strategy
 
-### Current Configuration
+**Pi-hole**:
+- Port 53 (DNS): Direct exposure (DNS protocol requirement)  
+- Web interface: HTTP proxied through Traefik
 
-The `dns/custom-dns.conf` file contains:
+**All other services**: HTTP traffic proxied through Traefik on ports 80/443
 
-```bash
-local=/home/
-local=/preprod.home/
+**Why this architecture**:
+- Centralized DNS and reverse proxy management
+- Environment isolation via service labels, not infrastructure
+- Simplified networking with single entry point
 
-bogus-priv
+## DNS Configuration
 
-# Production environment - all services route to Pi where Traefik runs
-address=/home/192.168.1.204
-
-# Preprod environment - all services route to N100 where Traefik runs  
-address=/preprod.home/192.168.1.11
-```
+DNS uses wildcard domain routing - both `*.home` and `*.preprod.home` resolve to the same machine where Traefik is running. Environment separation happens at the Traefik routing layer using service labels.
 
 ### Adding New Services
 
-With the Traefik architecture, adding new services requires **no DNS changes**:
+No DNS changes needed:
 
-1. **Add service to docker-swarm-stack.yml** with appropriate Traefik labels
-2. **Deploy the service**: `make env-up ENV=prod`
-3. **Access via subdomain**: `newservice.home` automatically routes to the service
+1. Add service to `docker-swarm-stack.yml` with Traefik labels including `${ENV_NAME}`
+2. Deploy: `make env-up ENV=prod` or `make env-up ENV=preprod` 
+3. Access automatically via `service.home` or `service.preprod.home`
 
-Traefik handles service discovery and routing automatically - no manual DNS records needed.
+### Adding New Environments
 
-### Configuration Format
+1. Add domain to DNS config routing to the Traefik machine
+2. Create environment file: `env/.env.newenv` with `ENV_NAME=newenv`
+3. Deploy: `make env-up ENV=newenv`
 
-The DNS configuration uses dnsmasq wildcard routing:
-
-- `local=/home/` - Defines `.home` as local domain
-- `local=/preprod.home/` - Defines `.preprod.home` as local domain  
-- `address=/home/192.168.1.204` - Routes all `.home` subdomains to Pi
-- `address=/preprod.home/192.168.1.11` - Routes all `.preprod.home` subdomains to N100
-
-### Environment-Specific Domains
-
-- **Production**: Uses `.home` domain (e.g., `jellyfin.home`)
-- **Pre-production**: Uses `.preprod.home` domain (e.g., `jellyfin.preprod.home`)
-
-All subdomains automatically route to the appropriate Traefik instance.
-
-## Creating New Environments
-
-To add a new environment (e.g., staging):
-
-1. **Add DNS routing** to `dns/custom-dns.conf`:
-   ```bash
-   local=/staging.home/
-   address=/staging.home/192.168.1.12  # Choose available IP
-   ```
-
-2. **Create environment file**:
-   ```bash
-   cp env/.env.example env/.env.staging
-   vim env/.env.staging
-   ```
-
-3. **Set environment-specific values** including `ENV_NAME=staging`
-
-4. **Create storage directories**:
-   ```bash
-   sudo mkdir -p /srv/data/staging/
-   ```
-
-5. **Deploy staging Traefik** on the chosen node
-
-No individual service DNS records needed - all services automatically work via `service.staging.home`.
+All services automatically work via `service.newenv.home` - Traefik handles routing based on service labels.
 
 ## Troubleshooting
 
