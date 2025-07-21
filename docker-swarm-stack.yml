@@ -155,7 +155,7 @@ services:
   kavita:
     image: jvmilazz0/kavita:${KAVITA_VERSION}
     volumes:
-      - /srv/data/${ENV_NAME}/kavita/books:/books
+      - /srv/data/${ENV_NAME}/kavita/Books:/books
       - /srv/data/${ENV_NAME}/kavita/config:/kavita/config
     environment:
       TZ: 'Europe/London'
