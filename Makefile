@@ -48,13 +48,16 @@ backup-install:
 	@echo "🔧 Enabling backup timer..."
 	sudo systemctl enable backup.timer
 	sudo systemctl start backup.timer
+	@echo "🔧 Setting up configuration directory..."
+	sudo mkdir -p /etc/backup
+	sudo cp backup/example-secrets.conf /etc/backup/prod-secrets.conf
+	sudo cp backup/example-secrets.conf /etc/backup/preprod-secrets.conf
+	sudo chmod 600 /etc/backup/*-secrets.conf
+	sudo chown root:root /etc/backup/*-secrets.conf
 	@echo "✅ Backup system installed!"
-	@echo "📋 Configure secrets files:"
-	@echo "  sudo mkdir -p /etc/backup"
-	@echo "  sudo cp backup/example-secrets.conf /etc/backup/prod-secrets.conf"
-	@echo "  sudo cp backup/example-secrets.conf /etc/backup/preprod-secrets.conf"
-	@echo "  sudo chmod 600 /etc/backup/*-secrets.conf"
-	@echo "  sudo chown root:root /etc/backup/*-secrets.conf"
+	@echo "📋 Edit configuration files with your credentials:"
+	@echo "  sudo vim /etc/backup/prod-secrets.conf"
+	@echo "  sudo vim /etc/backup/preprod-secrets.conf"
 	@echo "📋 Timer status:"
 	systemctl status backup.timer --no-pager
 
