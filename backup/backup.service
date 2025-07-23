@@ -1,0 +1,14 @@
+[Unit]
+Description=Daily backup of network storage data
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+ExecStart=/bin/sh -c '/usr/local/bin/backup.sh preprod && /usr/local/bin/backup.sh prod'
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
