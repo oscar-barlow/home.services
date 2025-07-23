@@ -65,6 +65,11 @@ backup() {
 
     # Export passphrase for Borg (borg expects this as an environment variable)
     export BORG_PASSPHRASE
+    
+    # Export B2 credentials for rclone
+    export RCLONE_CONFIG_B2_TYPE=b2
+    export RCLONE_CONFIG_B2_ACCOUNT=$B2_APPLICATION_KEY_ID
+    export RCLONE_CONFIG_B2_KEY=$B2_APPLICATION_KEY
 
     info "Starting backup for $ENVIRONMENT environment"
 
@@ -72,7 +77,6 @@ backup() {
 
     borg create                         \
         --verbose                       \
-        --list                          \
         --stats                         \
         --show-rc                       \
         --exclude-caches                \
@@ -103,7 +107,6 @@ prune_exit=$?
     info "Compacting repository"
 
     borg compact                        \
-        --list                          \
         --show-rc                       \
         --progress                      \
         /srv/data/bkp/$ENVIRONMENT
