@@ -137,7 +137,7 @@ services:
           memory: 128M
         reservations:
           memory: 64M
-  
+
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:${AUDIOBOOKSHELF_VERSION}
     volumes:
