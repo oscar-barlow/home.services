@@ -1,4 +1,4 @@
-.PHONY: env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -6,6 +6,7 @@ SERVICE ?=
 
 help:
 	@echo "Available commands:"
+	@echo "  backup-install - Install backup system (script, systemd units)"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
@@ -35,6 +36,30 @@ help:
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
 	@echo "  make swarm-deploy ENV=prod"
+
+backup-install:
+	@echo "🚀 Installing backup system..."
+	@echo "📝 Installing backup script..."
+	sudo cp backup/backup.sh /usr/local/bin/
+	sudo chmod +x /usr/local/bin/backup.sh
+	@echo "📦 Installing systemd units..."
+	sudo cp backup/backup.service backup/backup.timer /etc/systemd/system/
+	sudo systemctl daemon-reload
+	@echo "🔧 Enabling backup timer..."
+	sudo systemctl enable backup.timer
+	sudo systemctl start backup.timer
+	@echo "🔧 Setting up configuration directory..."
+	sudo mkdir -p /etc/backup
+	sudo cp backup/example-secrets.conf /etc/backup/prod-secrets.conf
+	sudo cp backup/example-secrets.conf /etc/backup/preprod-secrets.conf
+	sudo chmod 600 /etc/backup/*-secrets.conf
+	sudo chown root:root /etc/backup/*-secrets.conf
+	@echo "✅ Backup system installed!"
+	@echo "📋 Edit configuration files with your credentials:"
+	@echo "  sudo vim /etc/backup/prod-secrets.conf"
+	@echo "  sudo vim /etc/backup/preprod-secrets.conf"
+	@echo "📋 Timer status:"
+	systemctl status backup.timer --no-pager
 
 env-down:
 	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"

@@ -69,4 +69,20 @@ This command:
 - Verifies successful mount and shows disk usage
 - Lists directory contents for verification
 
+## Backup System
+
+Automated daily backups using Borg and B2 cloud storage.
+
+```bash
+# Install backup system
+make backup-install
+
+# Configure secrets files (edit with your credentials)
+sudo vim /etc/backup/prod-secrets.conf
+sudo vim /etc/backup/preprod-secrets.conf
+
+# Manual backup
+sudo /usr/local/bin/backup.sh prod
+```
+
 *Note: Additional storage architecture details will be added as the system is implemented.*
