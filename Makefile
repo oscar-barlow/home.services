@@ -1,4 +1,4 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node inspect-service list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -169,6 +169,9 @@ inspect-node:
 	echo "📍 Node address: $$(docker node inspect $$NODE_ID --format '{{.Status.Addr}}')" ; \
 	echo "🖥️  Platform: $$(docker node inspect $$NODE_ID --format '{{.Description.Platform.OS}}/{{.Description.Platform.Architecture}}')" ; \
 	echo "🔧 Docker version: $$(docker node inspect $$NODE_ID --format '{{.Description.Engine.EngineVersion}}')"
+
+inspect-service:
+	docker service ps homelab-$(ENV)_$(SERVICE) --no-trunc
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."

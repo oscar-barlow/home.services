@@ -179,3 +179,35 @@ services:
           memory: 512M
         reservations:
           memory: 256M
+
+  homeassistant:
+    image: "ghcr.io/home-assistant/home-assistant:${HOMEASSISTANT_VERSION}"
+    volumes:
+      - /srv/data/${ENV_NAME}/homeassistant/config:/config
+      - /etc/localtime:/etc/localtime:ro
+      - /run/dbus:/run/dbus:ro
+    environment:
+      TZ: 'Europe/London'
+    networks:
+      - homelab-overlay
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+    deploy:
+      replicas: ${HOMEASSISTANT_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.homeassistant-${ENV_NAME}.rule=Host(`homeassistant.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.homeassistant-${ENV_NAME}.loadbalancer.server.port=8123"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
