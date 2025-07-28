@@ -2,6 +2,12 @@ networks:
   homelab-shared:
     external: true
 
+configs:
+  pihole_custom_dns:
+    file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
+  pihole_config:
+    file: ./pihole/${ENV_NAME}/etc/pihole/pihole.toml
+
 services:
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
@@ -11,8 +17,14 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
     volumes:
-      - '/root/Projects/home.services/pihole/${ENV_NAME}/etc/pihole:/etc/pihole'
-      - '/root/Projects/home.services/pihole/${ENV_NAME}/etc/dnsmasq.d:/etc/dnsmasq.d'
+      - ./pihole/${ENV_NAME}/data:/etc/pihole
+    configs:
+      - source: pihole_custom_dns
+        target: /etc/dnsmasq.d/02-custom-dns.conf
+        mode: 0644
+      - source: pihole_config
+        target: /etc/pihole/pihole.toml
+        mode: 0644
     ports:
       - "${PIHOLE_DNS_PORT}:53/tcp"
       - "${PIHOLE_DNS_PORT}:53/udp"
