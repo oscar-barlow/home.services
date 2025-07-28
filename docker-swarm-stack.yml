@@ -4,11 +4,9 @@ networks:
 
 configs:
   pihole_custom_dns:
-    content: |
-      ${PIHOLE_CUSTOM_DNS_CONF}
+    file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_config:
-    content: |
-      ${PIHOLE_CONFIG_TOML}
+    file: ./pihole/${ENV_NAME}/etc/pihole/pihole.toml
 
 services:
   pihole:
