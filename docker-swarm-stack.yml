@@ -7,6 +7,10 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_config:
     file: ./pihole/${ENV_NAME}/etc/pihole/pihole.toml
+  prometheus_config:
+    file: ./prometheus/${ENV_NAME}/config/prometheus.yml
+  grafana_dashboards:
+    file: ./grafana/${ENV_NAME}/config/grafana-dashboards.json
 
 services:
   pihole:
@@ -204,8 +208,11 @@ services:
       - '--storage.tsdb.retention.time=30d'
       - '--web.enable-lifecycle'
     volumes:
-      - /srv/data/${ENV_NAME}/prometheus/config:/etc/prometheus
       - /srv/data/${ENV_NAME}/prometheus/data:/prometheus
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+        mode: 0644
     networks:
       - homelab-overlay
     deploy:
@@ -233,6 +240,10 @@ services:
       GF_INSTALL_PLUGINS: grafana-piechart-panel
     volumes:
       - /srv/data/${ENV_NAME}/grafana:/var/lib/grafana
+    configs:
+      - source: grafana_dashboards
+        target: /etc/grafana/provisioning/dashboards/dashboards.json
+        mode: 0644
     networks:
       - homelab-overlay
     deploy:
