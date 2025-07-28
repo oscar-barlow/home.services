@@ -243,10 +243,7 @@ list-services:
 
 network-up:
 	@echo "🚀 Creating Docker network"
-	docker network create --driver overlay --attachable --scope swarm \
-		--subnet=10.10.1.0/24 \ # prod
-		--subnet=10.10.2.0/24 \ # preprod
-		homelab-shared
+	docker network create --driver overlay --attachable --scope swarm --subnet=10.10.1.0/24 --subnet=10.10.2.0/24 homelab-shared
 
 network-down:
 	@echo "🛑 Removing Docker network"
