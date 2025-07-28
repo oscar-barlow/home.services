@@ -214,7 +214,7 @@ services:
         target: /etc/prometheus/prometheus.yml
         mode: 0644
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${PROMETHEUS_REPLICAS}
       labels:
@@ -245,7 +245,7 @@ services:
         target: /etc/grafana/provisioning/dashboards/dashboards.json
         mode: 0644
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${GRAFANA_REPLICAS}
       labels:
@@ -271,7 +271,7 @@ services:
     volumes:
       - '/:/host:ro,rslave'
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       mode: global
       restart_policy:
@@ -291,7 +291,7 @@ services:
       - /var/lib/docker/:/var/lib/docker:ro
       - /dev/disk/:/dev/disk:ro
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       mode: global
       restart_policy:
