@@ -25,6 +25,12 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Use `make env-up ENV=prod` or `make env-up ENV=preprod` to deploy specific environments
 - Only commit `env/.env.example` to git - other env files (.env.prod, .env.preprod) are gitignored
 
+## Cluster Management
+- The Docker Swarm cluster runs on remote infrastructure, not on the development machine
+- DO NOT execute cluster management commands (make commands, docker stack deploy, etc.)
+- Instead, suggest the appropriate commands for the user to run on their cluster nodes
+- Configuration files and documentation should be created/modified as needed
+
 ## Repository Structure
 - `docker-swarm-stack.yml` - Main service stack configuration
 - `env/` - Environment-specific configuration files (.env.prod, .env.preprod)
