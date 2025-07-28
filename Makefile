@@ -84,8 +84,8 @@ env-up:
 		exit 1; \
 	fi
 	@echo "📦 Loading configuration files..."
-	@export PIHOLE_CUSTOM_DNS_CONF="$$(cat pihole/$(ENV)/etc/dnsmasq.d/02-custom-dns.conf | sed 's/^/      /')" && \
-	export PIHOLE_CONFIG_TOML="$$(cat pihole/$(ENV)/etc/pihole/pihole.toml | sed 's/^/      /')" && \
+	@export PIHOLE_CUSTOM_DNS_CONF="$$(cat pihole/$(ENV)/etc/dnsmasq.d/02-custom-dns.conf | sed 's/^[[:space:]]*/      /')" && \
+	export PIHOLE_CONFIG_TOML="$$(cat pihole/$(ENV)/etc/pihole/pihole.toml | sed 's/^[[:space:]]*/      /')" && \
 	export $$(cat env/.env.$(ENV) | xargs) && \
 	echo "📦 Generating resolved config file..." && \
 	envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
