@@ -1,7 +1,6 @@
 networks:
-  homelab-overlay:
-    driver: overlay
-    attachable: true
+  homelab-shared:
+    external: true
 
 services:
   pihole:
@@ -25,7 +24,7 @@ services:
         max-size: "10m"
         max-file: "3"
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${PIHOLE_REPLICAS}
       labels:
@@ -54,7 +53,7 @@ services:
     tmpfs:
       - /tmp/jellyfin
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${JELLYFIN_REPLICAS}
       labels:
@@ -77,7 +76,7 @@ services:
     volumes:
       - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${HELLO_WORLD_REPLICAS}
       labels:
@@ -113,7 +112,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${TRAEFIK_REPLICAS}
       restart_policy:
@@ -136,7 +135,7 @@ services:
     environment:
       TZ: 'Europe/London'
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${AUDIOBOOKSHELF_REPLICAS}
       labels:
@@ -162,7 +161,7 @@ services:
     environment:
       TZ: 'Europe/London'
     networks:
-      - homelab-overlay
+      - homelab-shared
     deploy:
       replicas: ${KAVITA_REPLICAS}
       labels:
