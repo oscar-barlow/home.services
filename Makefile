@@ -1,4 +1,4 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -15,6 +15,8 @@ help:
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  list-services  - List services for ENV (default: preprod)"
+	@echo "  network-up     - Create shared Docker overlay network for all environments"
+	@echo "  network-down   - Remove shared Docker overlay network"
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
@@ -32,6 +34,8 @@ help:
 	@echo "  make list-services ENV=prod"
 	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
 	@echo "  make lvm-extend DEVICES='/dev/sdc'"
+	@echo "  make network-up"
+	@echo "  make network-down"
 	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
@@ -237,6 +241,19 @@ list-services:
 	@echo "📋 Services for environment: $(ENV)"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
+network-up:
+	@echo "🚀 Creating Docker network"
+	docker network create --driver overlay --attachable --scope swarm --subnet=10.10.1.0/24 --subnet=10.10.2.0/24 homelab-shared
+
+network-down:
+	@echo "🛑 Removing Docker network"
+	@if docker network ls --filter name=homelab-shared --format "{{.Name}}" | grep -q "homelab-shared"; then \
+		docker network rm homelab-shared; \
+		echo "✅ Network removed successfully!"; \
+	else \
+		echo "⚠️  Network homelab-shared not found"; \
+	fi
+
 node-label:
 	@echo "🏷️ Adding labels to swarm node..."
 	@if [ -z "$(NODE_ID)" ]; then echo "❌ Error: NODE_ID variable is required. Use: make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"; exit 1; fi
@@ -244,6 +261,7 @@ node-label:
 	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
 		echo "❌ Error: This command must be run from a swarm manager node."; \
 		exit 1; \
+
 	fi
 	@echo "📋 Verifying node $(NODE_ID) exists..."
 	@if ! docker node inspect $(NODE_ID) >/dev/null 2>&1; then \
