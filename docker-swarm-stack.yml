@@ -100,9 +100,6 @@ services:
         - "traefik.http.services.hello-world-${ENV_NAME}.loadbalancer.server.port=80"
       restart_policy:
         condition: on-failure
-      placement:
-        constraints:
-          - node.labels.hardware == n100
       resources:
         limits:
           memory: 32M
