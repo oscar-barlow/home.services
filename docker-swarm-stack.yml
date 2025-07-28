@@ -16,6 +16,8 @@ services:
       WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
+    volumes:
+      - ./pihole/${ENV_NAME}/data:/etc/pihole
     configs:
       - source: pihole_custom_dns
         target: /etc/dnsmasq.d/02-custom-dns.conf
