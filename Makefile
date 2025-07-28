@@ -83,8 +83,12 @@ env-up:
 		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
 		exit 1; \
 	fi
-	@echo "📦 Generating resolved config file..."
-	export $$(cat env/.env.$(ENV) | xargs) && envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
+	@echo "📦 Loading configuration files..."
+	@export PIHOLE_CUSTOM_DNS_CONF="$$(cat pihole/$(ENV)/etc/dnsmasq.d/02-custom-dns.conf)" && \
+	export PIHOLE_CONFIG_TOML="$$(cat pihole/$(ENV)/etc/pihole/pihole.toml)" && \
+	export $$(cat env/.env.$(ENV) | xargs) && \
+	echo "📦 Generating resolved config file..." && \
+	envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
 	@echo "📦 Deploying homelab stack..."
 	docker stack deploy --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
