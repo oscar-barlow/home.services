@@ -96,7 +96,7 @@ env-up:
 	@export $$(cat env/.env.$(ENV) | xargs) && \
 	envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
 	@echo "📦 Deploying homelab stack..."
-	docker stack deploy --detach=true --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
+	docker stack deploy --detach=true --with-registry-auth --compose-file docker-swarm-stack.$(ENV).yml homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
 	@echo "📋 Current services:"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
