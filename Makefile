@@ -1,4 +1,4 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install docker-login env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -7,6 +7,7 @@ SERVICE ?=
 help:
 	@echo "Available commands:"
 	@echo "  backup-install - Install backup system (script, systemd units)"
+	@echo "  docker-login   - Login to GitHub Container Registry (requires USERNAME and CR_PAT)"
 	@echo "  env-down       - Stop all services for ENV (default: preprod)"
 	@echo "  env-up         - Start all services for ENV (default: preprod)"
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
@@ -26,6 +27,7 @@ help:
 	@echo "  swarm-down     - Remove stack from Docker Swarm for ENV (default: preprod)"
 	@echo ""
 	@echo "Examples:"
+	@echo "  make docker-login USERNAME=oscar-barlow CR_PAT=ghp_xxxx"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-down ENV=prod SERVICE=jellyfin"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
@@ -40,6 +42,13 @@ help:
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
 	@echo "  make swarm-deploy ENV=prod"
+
+docker-login:
+	@echo "🔐 Logging into GitHub Container Registry..."
+	@if [ -z "$(USERNAME)" ]; then echo "❌ Error: USERNAME variable is required. Use: make docker-login USERNAME=oscar-barlow CR_PAT=ghp_xxxx"; exit 1; fi
+	@if [ -z "$(CR_PAT)" ]; then echo "❌ Error: CR_PAT variable is required. Use: make docker-login USERNAME=oscar-barlow CR_PAT=ghp_xxxx"; exit 1; fi
+	@echo "$(CR_PAT)" | docker login ghcr.io -u $(USERNAME) --password-stdin
+	@echo "✅ Successfully logged into ghcr.io as $(USERNAME)"
 
 backup-install:
 	@echo "🚀 Installing backup system..."
@@ -285,7 +294,14 @@ node-label:
 
 provision-node:
 	@echo "🚀 Provisioning homelab node..."
-	@echo "Step 1: Joining Docker Swarm..."
+	@echo "Step 1: Docker login..."
+	@if [ -n "$(USERNAME)" ] && [ -n "$(CR_PAT)" ]; then \
+		$(MAKE) docker-login USERNAME=$(USERNAME) CR_PAT=$(CR_PAT); \
+	else \
+		echo "⚠️  Skipping docker login - provide USERNAME and CR_PAT to login automatically"; \
+		echo "   To login later: make docker-login USERNAME=<username> CR_PAT=<token>"; \
+	fi
+	@echo "Step 2: Joining Docker Swarm..."
 	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
 		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
 	else \
@@ -299,7 +315,7 @@ provision-node:
 			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
 		fi; \
 	fi
-	@echo "Step 2: Node labeling..."
+	@echo "Step 3: Node labeling..."
 	@echo "⚠️  Node labels must be added from a manager node using:"
 	@echo "   make node-label NODE_ID=<node-id> LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"
 	@echo "   Use 'docker node ls' on manager to see node IDs"
