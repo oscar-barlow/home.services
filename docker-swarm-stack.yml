@@ -326,7 +326,7 @@ services:
           memory: 512M
 
   presentation:
-    image: ghcr.io/oscar-barlow/finance-monitoring-presentation:${PRESENTATION_VERSION}
+    image: ghcr.io/oscar-barlow/finance-monitoring-presentation:${FINANCE_PRESENTATION_VERSION}
     environment:
       TZ: 'Europe/London'
       FINANCES_DB_PATH: /app/data/finances.db
