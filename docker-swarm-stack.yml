@@ -299,8 +299,13 @@ services:
     image: ghcr.io/oscar-barlow/finance-monitoring-orchestration:${FINANCE_ORCHESTRATION_VERSION}
     environment:
       TZ: 'Europe/London'
+      FINANCES_DB_PATH: /app/data/db/finances.db
+      DATA_DIR: /app/data/raw
+      MODEL_DIR: /app/data/models
+      STARLING_ACCOUNT_UUID: '${STARLING_ACCOUNT_UUID}'
+      STARLING_API_TOKEN: '${STARLING_API_TOKEN}'
     volumes:
-      - /srv/data/${ENV_NAME}/finance_orchestration:/app/data
+      - /srv/data/${ENV_NAME}/finances:/app/data:rw
     networks:
       - homelab-shared
     deploy:
@@ -324,8 +329,9 @@ services:
     image: ghcr.io/oscar-barlow/finance-monitoring-presentation:${PRESENTATION_VERSION}
     environment:
       TZ: 'Europe/London'
+      FINANCES_DB_PATH: /app/data/finances.db
     volumes:
-      - /srv/data/${ENV_NAME}/presentation:/app/data
+      - /srv/data/${ENV_NAME}/finances/data/db/finances.db:/app/data/finances.db:ro
     networks:
       - homelab-shared
     deploy:
