@@ -303,7 +303,7 @@ services:
           memory: 128M
 
   steam:
-    image: josh5/steam-headless:${STEAM_VERSION}
+    image: josh5/steam-headless@${STEAM_IMAGE_DIGEST}
     environment:
       TZ: 'Europe/London'
       DISPLAY: ':0'
