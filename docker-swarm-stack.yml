@@ -301,3 +301,50 @@ services:
           memory: 256M
         reservations:
           memory: 128M
+
+  steam:
+    image: josh5/steam-headless:${STEAM_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      DISPLAY: ':0'
+      NVIDIA_VISIBLE_DEVICES: all
+      NVIDIA_DRIVER_CAPABILITIES: all
+    volumes:
+      - /srv/data/${ENV_NAME}/steam/home:/home/default
+      - /srv/data/${ENV_NAME}/steam/games:/mnt/games
+      - /tmp/.X11-unix:/tmp/.X11-unix:rw
+    tmpfs:
+      - /tmp
+      - /var/tmp
+    ports:
+      - "${STEAM_WEB_PORT}:8083"
+    networks:
+      - homelab-shared
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - SETUID
+      - SETGID
+      - DAC_OVERRIDE
+    user: "99:100"
+    deploy:
+      replicas: ${STEAM_REPLICAS}
+      labels:
+        - "env=${ENV_NAME}"
+        - "traefik.enable=true"
+        - "traefik.http.routers.steam-${ENV_NAME}.rule=Host(`steam.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.steam-${ENV_NAME}.loadbalancer.server.port=8083"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 2G
+          cpus: '2'
+        reservations:
+          memory: 1G
+          cpus: '1'
