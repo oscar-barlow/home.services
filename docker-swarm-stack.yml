@@ -313,11 +313,26 @@ services:
         reservations:
           memory: 128M
 
+  code-server-init:
+    image: alpine:latest
+    command: ["sh", "-c", "chown -R 1000:1000 /home/coder && chown -R 1000:1000 /config"]
+    volumes:
+      - /srv/data/${ENV_NAME}/code-server/config:/config
+      - /srv/data/${ENV_NAME}/code-server/workspace:/home/coder
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+
   code-server:
     image: codercom/code-server:${CODE_SERVER_VERSION}
     environment:
       TZ: 'Europe/London'
       PASSWORD: '${CODE_SERVER_PASSWORD}'
+      PUID: 1000
+      PGID: 1000
       DEFAULT_WORKSPACE: '/home/coder'
       GIT_CONFIG_GLOBAL_CREDENTIAL_HELPER: 'store'
       GIT_AUTHOR_NAME: '${GIT_USER_NAME}'
@@ -327,6 +342,8 @@ services:
     volumes:
       - /srv/data/${ENV_NAME}/code-server/config:/config
       - /srv/data/${ENV_NAME}/code-server/workspace:/home/coder
+    depends_on:
+      - code-server-init
     configs:
       - source: code_server_devcontainer
         target: /home/coder/.devcontainer/devcontainer.json
