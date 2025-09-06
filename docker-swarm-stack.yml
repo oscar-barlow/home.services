@@ -318,8 +318,6 @@ services:
     environment:
       TZ: 'Europe/London'
       PASSWORD: '${CODE_SERVER_PASSWORD}'
-      PUID: 1000
-      PGID: 1000
       DEFAULT_WORKSPACE: '/home/coder'
       GIT_CONFIG_GLOBAL_CREDENTIAL_HELPER: 'store'
       GIT_AUTHOR_NAME: '${GIT_USER_NAME}'
