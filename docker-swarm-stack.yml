@@ -2,6 +2,11 @@ networks:
   homelab-shared:
     external: true
 
+secrets:
+  code_server_git_credentials:
+    name: code_server_git_credentials_${ENV_NAME}
+    external: true
+
 configs:
   pihole_custom_dns:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
@@ -316,15 +321,24 @@ services:
       PUID: 1000
       PGID: 1000
       DEFAULT_WORKSPACE: '/workspace'
-      SSH_AUTH_SOCK: /tmp/ssh-agent.sock
+      GIT_CONFIG_GLOBAL_CREDENTIAL_HELPER: 'store'
+      GIT_AUTHOR_NAME: '${GIT_USER_NAME}'
+      GIT_AUTHOR_EMAIL: '${GIT_USER_EMAIL}'
+      GIT_COMMITTER_NAME: '${GIT_USER_NAME}'
+      GIT_COMMITTER_EMAIL: '${GIT_USER_EMAIL}'
     volumes:
       - /srv/data/${ENV_NAME}/code-server/config:/config
       - /srv/data/${ENV_NAME}/code-server/workspace:/workspace
-      - ${SSH_AUTH_SOCK}:/tmp/ssh-agent.sock
     configs:
       - source: code_server_devcontainer
         target: /workspace/.devcontainer/devcontainer.json
         mode: 0644
+    secrets:
+      - source: code_server_git_credentials
+        target: /home/coder/.git-credentials
+        mode: 0600
+        uid: '1000'
+        gid: '1000'
     networks:
       - homelab-shared
     deploy:

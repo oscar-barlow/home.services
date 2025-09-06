@@ -33,13 +33,7 @@
   "postCreateCommand": [
     "bash",
     "-c",
-    "curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.cargo/bin:$PATH\"' >> ~/.bashrc && ssh-keyscan -H github.com >> ~/.ssh/known_hosts 2>/dev/null || true"
+    "curl -LsSf https://astral.sh/uv/install.sh | sh && echo 'export PATH=\"$HOME/.cargo/bin:$PATH\"' >> ~/.bashrc"
   ],
-  "remoteUser": "vscode",
-  "mounts": [
-    "source=${localEnv:SSH_AUTH_SOCK},target=/tmp/ssh-agent.sock,type=bind"
-  ],
-  "containerEnv": {
-    "SSH_AUTH_SOCK": "/tmp/ssh-agent.sock"
-  }
+  "remoteUser": "vscode"
 }
