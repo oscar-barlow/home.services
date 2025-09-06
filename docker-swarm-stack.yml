@@ -2,6 +2,11 @@ networks:
   homelab-shared:
     external: true
 
+secrets:
+  code_server_git_credentials:
+    name: code_server_git_credentials_${ENV_NAME}
+    external: true
+
 configs:
   pihole_custom_dns:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
@@ -11,6 +16,8 @@ configs:
     file: ./prometheus/${ENV_NAME}/config/prometheus.yml
   grafana_dashboards:
     file: ./grafana/${ENV_NAME}/config/grafana-dashboards.json
+  code_server_devcontainer:
+    file: ./code-server/config/devcontainer.json
 
 services:
   pihole:
@@ -305,3 +312,64 @@ services:
           memory: 256M
         reservations:
           memory: 128M
+
+  code-server-init:
+    image: alpine:latest
+    command: ["sh", "-c", "chown -R 1000:1000 /home/coder && chown -R 1000:1000 /config"]
+    volumes:
+      - /srv/data/${ENV_NAME}/code-server/config:/config
+      - /srv/data/${ENV_NAME}/code-server/workspace:/home/coder
+    deploy:
+      restart_policy:
+        condition: none
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+
+  code-server:
+    image: codercom/code-server:${CODE_SERVER_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      PASSWORD: '${CODE_SERVER_PASSWORD}'
+      PUID: 1000
+      PGID: 1000
+      DEFAULT_WORKSPACE: '/home/coder'
+      GIT_CONFIG_GLOBAL_CREDENTIAL_HELPER: 'store'
+      GIT_AUTHOR_NAME: '${GIT_USER_NAME}'
+      GIT_AUTHOR_EMAIL: '${GIT_USER_EMAIL}'
+      GIT_COMMITTER_NAME: '${GIT_USER_NAME}'
+      GIT_COMMITTER_EMAIL: '${GIT_USER_EMAIL}'
+    volumes:
+      - /srv/data/${ENV_NAME}/code-server/config:/config
+      - /srv/data/${ENV_NAME}/code-server/workspace:/home/coder
+    depends_on:
+      - code-server-init
+    configs:
+      - source: code_server_devcontainer
+        target: /home/coder/.devcontainer/devcontainer.json
+        mode: 0644
+    secrets:
+      - source: code_server_git_credentials
+        target: /home/coder/.git-credentials
+        mode: 0600
+        uid: '1000'
+        gid: '1000'
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: 1
+      labels:
+        - "env=${ENV_NAME}"
+        - "traefik.enable=true"
+        - "traefik.http.routers.code-server-${ENV_NAME}.rule=Host(`code-server.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.code-server-${ENV_NAME}.loadbalancer.server.port=8080"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
