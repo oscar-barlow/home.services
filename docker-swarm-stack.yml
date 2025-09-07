@@ -31,8 +31,8 @@ services:
     dns:
       - 1.1.1.1
       - 8.8.8.8
-    volumes:
-      - /etc/pihole/${ENV_NAME}:/etc/pihole
+    tmpfs:
+      - /etc/pihole
     configs:
       - source: pihole_custom_dns
         target: /etc/dnsmasq.d/02-custom-dns.conf
