@@ -40,8 +40,6 @@ services:
       - source: pihole_config
         target: /etc/pihole/pihole.toml
         mode: 0644
-        uid: '1000'
-        gid: '1000'
     ports:
       - "${PIHOLE_DNS_PORT}:53/tcp"
       - "${PIHOLE_DNS_PORT}:53/udp"
