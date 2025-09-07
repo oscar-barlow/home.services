@@ -59,6 +59,8 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.pihole-${ENV_NAME}.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.pihole-${ENV_NAME}.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.compression-pihole-${ENV_NAME}.compress=true"
+        - "traefik.http.routers.pihole-${ENV_NAME}.middlewares=compression-pihole-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -89,6 +91,12 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.jellyfin-${ENV_NAME}.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.jellyfin-${ENV_NAME}.loadbalancer.server.port=8096"
+        - "traefik.http.middlewares.compression-jellyfin-${ENV_NAME}.compress=true"
+        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.middlewares=compression-jellyfin-${ENV_NAME},buffering-jellyfin-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -100,26 +108,6 @@ services:
         reservations:
           memory: 512M
 
-  hello-world:
-    image: nginx:${HELLO_WORLD_VERSION}
-    volumes:
-      - /srv/data/${ENV_NAME}/hello-world:/usr/share/nginx/html:ro
-    networks:
-      - homelab-shared
-    deploy:
-      replicas: ${HELLO_WORLD_REPLICAS}
-      labels:
-        - "env=${ENV_NAME}"
-        - "traefik.enable=true"
-        - "traefik.http.routers.hello-world-${ENV_NAME}.rule=Host(`hello-world.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.hello-world-${ENV_NAME}.loadbalancer.server.port=80"
-      restart_policy:
-        condition: on-failure
-      resources:
-        limits:
-          memory: 32M
-        reservations:
-          memory: 16M
 
   traefik:
     image: traefik:${TRAEFIK_VERSION}
@@ -171,6 +159,12 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.rule=Host(`audiobookshelf.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.audiobookshelf-${ENV_NAME}.loadbalancer.server.port=80"
+        - "traefik.http.middlewares.compression-audiobookshelf-${ENV_NAME}.compress=true"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
+        - "traefik.http.routers.audiobookshelf-${ENV_NAME}.middlewares=compression-audiobookshelf-${ENV_NAME},buffering-audiobookshelf-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -198,6 +192,12 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.kavita-${ENV_NAME}.loadbalancer.server.port=5000"
+        - "traefik.http.middlewares.compression-kavita-${ENV_NAME}.compress=true"
+        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
+        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
+        - "traefik.http.routers.kavita-${ENV_NAME}.middlewares=compression-kavita-${ENV_NAME},buffering-kavita-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -233,6 +233,8 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.prometheus-${ENV_NAME}.rule=Host(`prometheus.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.prometheus-${ENV_NAME}.loadbalancer.server.port=9090"
+        - "traefik.http.middlewares.compression-prometheus-${ENV_NAME}.compress=true"
+        - "traefik.http.routers.prometheus-${ENV_NAME}.middlewares=compression-prometheus-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -264,6 +266,8 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.grafana-${ENV_NAME}.rule=Host(`grafana.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.grafana-${ENV_NAME}.loadbalancer.server.port=3000"
+        - "traefik.http.middlewares.compression-grafana-${ENV_NAME}.compress=true"
+        - "traefik.http.routers.grafana-${ENV_NAME}.middlewares=compression-grafana-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
@@ -363,6 +367,12 @@ services:
         - "traefik.enable=true"
         - "traefik.http.routers.code-server-${ENV_NAME}.rule=Host(`code-server.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.code-server-${ENV_NAME}.loadbalancer.server.port=8080"
+        - "traefik.http.middlewares.compression-code-server-${ENV_NAME}.compress=true"
+        - "traefik.http.middlewares.buffering-code-server-${ENV_NAME}.buffering.maxRequestBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-code-server-${ENV_NAME}.buffering.memRequestBodyBytes=1000000"
+        - "traefik.http.middlewares.buffering-code-server-${ENV_NAME}.buffering.maxResponseBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-code-server-${ENV_NAME}.buffering.memResponseBodyBytes=1000000"
+        - "traefik.http.routers.code-server-${ENV_NAME}.middlewares=compression-code-server-${ENV_NAME},buffering-code-server-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
