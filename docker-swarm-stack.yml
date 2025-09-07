@@ -75,11 +75,13 @@ services:
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     volumes:
-      - /tmp/var/${ENV_NAME}/jellyfin/cache:/cache
+      - /var/cache/${ENV_NAME}/jellyfin:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
       - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
       - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
+      - /srv/data/${ENV_NAME}/jellyfin/TV:/TV
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
+      - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
     tmpfs:
       - /tmp/jellyfin
     networks:
