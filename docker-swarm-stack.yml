@@ -118,7 +118,6 @@ services:
       - "--api.insecure=true"
       - "--providers.swarm=true"
       - "--providers.swarm.exposedbydefault=false"
-      - "--providers.swarm.constraints=Label(`env`,`${ENV_NAME}`)"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.websecure.address=:443"
       - "--log.level=INFO"
