@@ -6,6 +6,12 @@ secrets:
   code_server_git_credentials:
     name: code_server_git_credentials_${ENV_NAME}
     external: true
+  grafana_admin_password:
+    name: grafana_admin_password_${ENV_NAME}
+    external: true
+  pihole_web_password:
+    name: pihole_web_password_${ENV_NAME}
+    external: true
 
 configs:
   pihole_custom_dns:
@@ -16,15 +22,19 @@ configs:
     file: ./prometheus/${ENV_NAME}/config/prometheus.yml
   grafana_dashboards:
     file: ./grafana/${ENV_NAME}/config/grafana-dashboards.json
+  grafana_config:
+    file: ./grafana/${ENV_NAME}/config/grafana.ini
   code_server_devcontainer:
     file: ./code-server/config/devcontainer.json
+  code_server_config:
+    file: ./code-server/${ENV_NAME}/config.yaml
 
 services:
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
     environment:
       TZ: 'Europe/London'
-      WEBPASSWORD: '${PIHOLE_WEBPASSWORD}'
+      WEBPASSWORD_FILE: '/run/secrets/pihole_web_password'
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
       FTLCONF_dns_upstreams: '1.1.1.1;8.8.8.8'
@@ -40,6 +50,8 @@ services:
       - source: pihole_config
         target: /etc/pihole/pihole.toml
         mode: 0644
+    secrets:
+      - pihole_web_password
     ports:
       - "${PIHOLE_DNS_PORT}:53/tcp"
       - "${PIHOLE_DNS_PORT}:53/udp"
@@ -249,15 +261,17 @@ services:
 
   grafana:
     image: grafana/grafana:${GRAFANA_VERSION}
-    environment:
-      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD}
-      GF_INSTALL_PLUGINS: grafana-piechart-panel
     volumes:
       - /srv/data/${ENV_NAME}/grafana:/var/lib/grafana
     configs:
       - source: grafana_dashboards
         target: /etc/grafana/provisioning/dashboards/dashboards.json
         mode: 0644
+      - source: grafana_config
+        target: /etc/grafana/grafana.ini
+        mode: 0644
+    secrets:
+      - grafana_admin_password
     networks:
       - homelab-shared
     deploy:
@@ -335,7 +349,6 @@ services:
     image: codercom/code-server:${CODE_SERVER_VERSION}
     environment:
       TZ: 'Europe/London'
-      PASSWORD: '${CODE_SERVER_PASSWORD}'
       PUID: 1000
       PGID: 1000
       DEFAULT_WORKSPACE: '/home/coder'
@@ -353,6 +366,11 @@ services:
       - source: code_server_devcontainer
         target: /home/coder/.devcontainer/devcontainer.json
         mode: 0644
+      - source: code_server_config
+        target: /home/coder/.config/code-server/config.yaml
+        mode: 0644
+        uid: '1000'
+        gid: '1000'
     secrets:
       - source: code_server_git_credentials
         target: /home/coder/.git-credentials
