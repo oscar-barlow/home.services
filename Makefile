@@ -1,4 +1,4 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down service-remove swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
@@ -20,6 +20,7 @@ help:
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
+	@echo "  service-remove - Remove specific SERVICE from ENV stack (requires SERVICE=name)"
 	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
 	@echo "  swarm-deploy   - Deploy stack to Docker Swarm for ENV (default: preprod)"
@@ -28,6 +29,7 @@ help:
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
 	@echo "  make service-down ENV=prod SERVICE=jellyfin"
+	@echo "  make service-remove ENV=prod SERVICE=prometheus"
 	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
 	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
 	@echo "  make inspect-node HOSTNAME=rpi-3-0"
@@ -311,6 +313,16 @@ service-down:
 	@if docker service ls --filter name=homelab-$(ENV)_$(SERVICE) --format "{{.Name}}" | grep -q "homelab-$(ENV)_$(SERVICE)"; then \
 		docker service scale homelab-$(ENV)_$(SERVICE)=0; \
 		echo "✅ Service $(SERVICE) scaled to 0 replicas"; \
+	else \
+		echo "⚠️  Service homelab-$(ENV)_$(SERVICE) not found"; \
+	fi
+
+service-remove:
+	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-remove SERVICE=servicename"; exit 1; fi
+	@echo "🗑️ Removing $(SERVICE) from homelab-$(ENV) stack..."
+	@if docker service ls --filter name=homelab-$(ENV)_$(SERVICE) --format "{{.Name}}" | grep -q "homelab-$(ENV)_$(SERVICE)"; then \
+		docker service rm homelab-$(ENV)_$(SERVICE); \
+		echo "✅ Service $(SERVICE) removed from stack"; \
 	else \
 		echo "⚠️  Service homelab-$(ENV)_$(SERVICE) not found"; \
 	fi
