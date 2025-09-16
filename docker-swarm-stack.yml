@@ -179,8 +179,8 @@ services:
         - "traefik.http.middlewares.compression-audiobookshelf-${ENV_NAME}.compress=true"
         - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
         - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
-        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
-        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.maxResponseBodyBytes=250000000"
+        - "traefik.http.middlewares.buffering-audiobookshelf-${ENV_NAME}.buffering.memResponseBodyBytes=50000000"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.middlewares=compression-audiobookshelf-${ENV_NAME},buffering-audiobookshelf-${ENV_NAME}"
       restart_policy:
         condition: on-failure
