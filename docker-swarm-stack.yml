@@ -6,9 +6,6 @@ secrets:
   code_server_git_credentials:
     name: code_server_git_credentials_${ENV_NAME}
     external: true
-  grafana_admin_password:
-    name: grafana_admin_password_${ENV_NAME}
-    external: true
   pihole_web_password:
     name: pihole_web_password_${ENV_NAME}
     external: true
@@ -18,12 +15,6 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_config:
     file: ./pihole/${ENV_NAME}/etc/pihole/pihole.toml
-  prometheus_config:
-    file: ./prometheus/${ENV_NAME}/config/prometheus.yml
-  grafana_dashboards:
-    file: ./grafana/${ENV_NAME}/config/grafana-dashboards.json
-  grafana_config:
-    file: ./grafana/${ENV_NAME}/config/grafana.ini
   code_server_devcontainer:
     file: ./code-server/config/devcontainer.json
   code_server_config:
@@ -222,77 +213,7 @@ services:
         reservations:
           memory: 256M
 
-  prometheus:
-    image: prom/prometheus:${PROMETHEUS_VERSION}
-    command:
-      - '--config.file=/etc/prometheus/prometheus.yml'
-      - '--storage.tsdb.path=/prometheus'
-      - '--web.console.libraries=/etc/prometheus/console_libraries'
-      - '--web.console.templates=/etc/prometheus/consoles'
-      - '--storage.tsdb.retention.time=30d'
-      - '--web.enable-lifecycle'
-    volumes:
-      - /srv/data/${ENV_NAME}/prometheus/data:/prometheus
-    configs:
-      - source: prometheus_config
-        target: /etc/prometheus/prometheus.yml
-        mode: 0644
-    networks:
-      - homelab-shared
-    deploy:
-      replicas: ${PROMETHEUS_REPLICAS}
-      labels:
-        - "env=${ENV_NAME}"
-        - "traefik.enable=true"
-        - "traefik.http.routers.prometheus-${ENV_NAME}.rule=Host(`prometheus.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.prometheus-${ENV_NAME}.loadbalancer.server.port=9090"
-        - "traefik.http.middlewares.compression-prometheus-${ENV_NAME}.compress=true"
-        - "traefik.http.routers.prometheus-${ENV_NAME}.middlewares=compression-prometheus-${ENV_NAME}"
-      restart_policy:
-        condition: on-failure
-      placement:
-        constraints:
-          - node.labels.hardware == n100
-      resources:
-        limits:
-          memory: 1G
-        reservations:
-          memory: 512M
 
-  grafana:
-    image: grafana/grafana:${GRAFANA_VERSION}
-    volumes:
-      - /srv/data/${ENV_NAME}/grafana:/var/lib/grafana
-    configs:
-      - source: grafana_dashboards
-        target: /etc/grafana/provisioning/dashboards/dashboards.json
-        mode: 0644
-      - source: grafana_config
-        target: /etc/grafana/grafana.ini
-        mode: 0644
-    secrets:
-      - grafana_admin_password
-    networks:
-      - homelab-shared
-    deploy:
-      replicas: ${GRAFANA_REPLICAS}
-      labels:
-        - "env=${ENV_NAME}"
-        - "traefik.enable=true"
-        - "traefik.http.routers.grafana-${ENV_NAME}.rule=Host(`grafana.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.grafana-${ENV_NAME}.loadbalancer.server.port=3000"
-        - "traefik.http.middlewares.compression-grafana-${ENV_NAME}.compress=true"
-        - "traefik.http.routers.grafana-${ENV_NAME}.middlewares=compression-grafana-${ENV_NAME}"
-      restart_policy:
-        condition: on-failure
-      placement:
-        constraints:
-          - node.labels.hardware == n100
-      resources:
-        limits:
-          memory: 512M
-        reservations:
-          memory: 256M
 
   node-exporter:
     image: prom/node-exporter:${NODE_EXPORTER_VERSION}
@@ -312,25 +233,6 @@ services:
         reservations:
           memory: 64M
 
-  cadvisor:
-    image: gcr.io/cadvisor/cadvisor:${CADVISOR_VERSION}
-    volumes:
-      - /:/rootfs:ro
-      - /var/run:/var/run:ro
-      - /sys:/sys:ro
-      - /var/lib/docker/:/var/lib/docker:ro
-      - /dev/disk/:/dev/disk:ro
-    networks:
-      - homelab-shared
-    deploy:
-      mode: global
-      restart_policy:
-        condition: on-failure
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
 
   code-server-init:
     image: alpine:latest
