@@ -215,23 +215,6 @@ services:
 
 
 
-  node-exporter:
-    image: prom/node-exporter:${NODE_EXPORTER_VERSION}
-    command:
-      - '--path.rootfs=/host'
-    volumes:
-      - '/:/host:ro,rslave'
-    networks:
-      - homelab-shared
-    deploy:
-      mode: global
-      restart_policy:
-        condition: on-failure
-      resources:
-        limits:
-          memory: 128M
-        reservations:
-          memory: 64M
 
 
   code-server-init:
