@@ -9,6 +9,9 @@ secrets:
   pihole_web_password:
     name: pihole_web_password_${ENV_NAME}
     external: true
+  wikijs_db_password:
+    name: wikijs_db_password_${ENV_NAME}
+    external: true
 
 configs:
   pihole_custom_dns:
@@ -273,6 +276,64 @@ services:
           memory: 128M
         reservations:
           memory: 64M
+
+  wikijs-db:
+    image: postgres:${WIKIJS_POSTGRES_VERSION}
+    environment:
+      POSTGRES_DB: wiki
+      POSTGRES_USER: wikijs
+      POSTGRES_PASSWORD_FILE: /run/secrets/wikijs_db_password
+    volumes:
+      - /srv/data/${ENV_NAME}/wikijs/postgres:/var/lib/postgresql/data
+    secrets:
+      - wikijs_db_password
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${WIKIJS_DB_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  wikijs:
+    image: requarks/wiki:${WIKIJS_VERSION}
+    environment:
+      DB_TYPE: postgres
+      DB_HOST: wikijs-db
+      DB_PORT: 5432
+      DB_USER: wikijs
+      DB_PASS_FILE: /run/secrets/wikijs_db_password
+      DB_NAME: wiki
+    secrets:
+      - wikijs_db_password
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${WIKIJS_REPLICAS}
+      labels:
+        - "env=${ENV_NAME}"
+        - "traefik.enable=true"
+        - "traefik.http.routers.wikijs-${ENV_NAME}.rule=Host(`wiki.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.wikijs-${ENV_NAME}.loadbalancer.server.port=3000"
+        - "traefik.http.middlewares.compression-wikijs-${ENV_NAME}.compress=true"
+        - "traefik.http.routers.wikijs-${ENV_NAME}.middlewares=compression-wikijs-${ENV_NAME}"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   code-server-init:
     image: alpine:latest
