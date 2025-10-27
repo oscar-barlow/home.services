@@ -298,9 +298,9 @@ services:
           - node.labels.hardware == n100
       resources:
         limits:
-          memory: 256M
+          memory: 512M
         reservations:
-          memory: 128M
+          memory: 256M
 
   wikijs:
     image: requarks/wiki:${WIKIJS_VERSION}
