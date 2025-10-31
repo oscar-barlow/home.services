@@ -276,6 +276,7 @@ services:
 
   wikijs:
     image: requarks/wiki:${WIKIJS_VERSION}
+    user: root
     volumes:
       - /srv/data/${ENV_NAME}/wikijs/data:/wiki/data
     environment:
