@@ -9,6 +9,9 @@ secrets:
   pihole_web_password:
     name: pihole_web_password_${ENV_NAME}
     external: true
+  release_manager_github_token:
+    name: release_manager_github_token_${ENV_NAME}
+    external: true
 
 configs:
   pihole_custom_dns:
@@ -303,6 +306,47 @@ services:
           memory: 512M
         reservations:
           memory: 256M
+
+  release-manager:
+    image: ghcr.io/oscar-barlow/release-manager:${RELEASE_MANAGER_VERSION}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/data/${ENV_NAME}/release-manager/data:/app/data
+    environment:
+      ENV_NAME: '${ENV_NAME}'
+      STUB_MODE: '${RELEASE_MANAGER_STUB_MODE}'
+      GITHUB_REPO: '${RELEASE_MANAGER_GITHUB_REPO}'
+      GITHUB_TOKEN_FILE: '/run/secrets/release_manager_github_token'
+      DOCKER_HOST: 'unix:///var/run/docker.sock'
+      DATABASE_PATH: '/app/data/release_manager.db'
+      DEPLOYMENT_TIMEOUT_SECONDS: 300
+      HEALTH_CHECK_INTERVAL_SECONDS: 5
+      WEB_HOST: '0.0.0.0'
+      WEB_PORT: 8080
+      POLL_INTERVAL_SECONDS: 60
+    secrets:
+      - release_manager_github_token
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${RELEASE_MANAGER_REPLICAS}
+      labels:
+        - "env=${ENV_NAME}"
+        - "traefik.enable=true"
+        - "traefik.http.routers.release-manager-${ENV_NAME}.rule=Host(`release-manager.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.services.release-manager-${ENV_NAME}.loadbalancer.server.port=8080"
+        - "traefik.http.middlewares.compression-release-manager-${ENV_NAME}.compress=true"
+        - "traefik.http.routers.release-manager-${ENV_NAME}.middlewares=compression-release-manager-${ENV_NAME}"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   code-server-init:
     image: alpine:latest
