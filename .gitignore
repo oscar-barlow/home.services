@@ -1,7 +1,3 @@
-# env
-env/.env.*
-!env/.env.example
-
 # Pi-hole local configuration - exclude cache and runtime config, keep version-controlled files
 pihole/*/etc/pihole/*
 !pihole/*/etc/pihole/pihole.toml
