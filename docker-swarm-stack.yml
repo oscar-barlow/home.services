@@ -200,11 +200,7 @@ services:
         - "traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)"
         - "traefik.http.services.kavita-${ENV_NAME}.loadbalancer.server.port=5000"
         - "traefik.http.middlewares.compression-kavita-${ENV_NAME}.compress=true"
-        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
-        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
-        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
-        - "traefik.http.middlewares.buffering-kavita-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
-        - "traefik.http.routers.kavita-${ENV_NAME}.middlewares=compression-kavita-${ENV_NAME},buffering-kavita-${ENV_NAME}"
+        - "traefik.http.routers.kavita-${ENV_NAME}.middlewares=compression-kavita-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
