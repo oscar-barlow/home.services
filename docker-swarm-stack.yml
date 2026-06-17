@@ -86,6 +86,7 @@ services:
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensClips:/ChildrensClips
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
+      - /srv/data/${ENV_NAME}/jellyfin/Classical:/Classical
     tmpfs:
       - /tmp/jellyfin
     networks:
