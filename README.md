@@ -4,47 +4,55 @@ A collection of containerized services for a home network environment.
 
 ## Services
 
-### Nginx
-- Reverse proxy on ports 80 (HTTP) and 443 (HTTPS)
-- Configuration in `./nginx/conf.d`
-- SSL certificates in `./nginx/certs`
+### NGINX
+- Reverse proxy on port 80 (HTTP)
+- Configuration templated from `nginx/nginx.conf.template`
+- Routes requests to backend services by hostname
 
 ### Pi-hole
 - DNS filtering and ad blocking
-- Web interface on port 81
+- Web interface proxied via NGINX at `pihole.home`
 - DNS services on port 53 (TCP/UDP)
-- Custom DNS configurations via `custom-dns.conf`
+- Custom DNS configurations via `02-custom-dns.conf`
 - Log rotation configured (10M max size, 3 files)
 
 ### Jellyfin
-- Media server using host networking
+- Media server proxied via NGINX at `jellyfin.home`
 - Access to media directories:
   - Music
   - Movies
-  - Books
+  - TV
   - ChildrensMovies
-- Configuration persisted in `./jellyfin/config`
+  - ChildrensClips
+  - ChildrensTV
+  - Classical
+- Configuration persisted in `/srv/data/${ENV}/jellyfin/config`
+
+### Audiobookshelf
+- Audiobook server proxied via NGINX at `audiobookshelf.home`
+
+### Kavita
+- Book/comic reader proxied via NGINX at `kavita.home`
+
+### Wiki.js
+- Wiki proxied via NGINX at `wiki.home`
+
+### Release Manager
+- Deployment manager proxied via NGINX at `release-manager.home`
 
 ## Network
 
-Services use macvlan networking to get direct IP addresses on the local network. The network infrastructure is managed separately from application services.
-
-A systemd service (`homelab-shim.service`) creates a network shim that enables the host to communicate with containers on macvlan networks. This shim is essential because Docker's macvlan isolation normally prevents host-to-container communication.
+Services run on a Docker Swarm overlay network (`homelab-shared`). Pi-hole provides DNS resolution, mapping all `*.home` hostnames to the node running NGINX. NGINX then routes by `Host` header to the correct backend service.
 
 ### Network Management
 
 ```bash
-# Install systemd network shim service (one-time setup)
-make install-shim
-
-# Start network infrastructure (required before services)
+# Create shared Docker overlay network (one-time setup)
 make network-up
 
-# Stop network infrastructure
+# Remove shared Docker overlay network
 make network-down
 ```
-
-See [network.md](network.md) for detailed network architecture and IP allocation.
 
 ### SSH Access
 See [ssh.md](ssh.md) for information about remote access to homelab nodes.
@@ -83,10 +91,7 @@ See [hardware.md](hardware.md) for detailed hardware specifications, installatio
 ## Usage
 
 ```bash
-# One-time setup: Install systemd network shim
-make install-shim
-
-# Start network infrastructure first
+# Create shared network first (one-time)
 make network-up
 
 # Start all services for preprod environment (default)
@@ -100,24 +105,18 @@ make env-down
 
 # Stop services for specific environment
 make env-down ENV=prod
-
-# Stop network infrastructure
-make network-down
 ```
 
 ### Service Management
 
 ```bash
-# Start specific service
-make service-up SERVICE=jellyfin
-
-# Start specific service in production
-make service-up ENV=prod SERVICE=jellyfin
-
 # Stop specific service
 make service-down SERVICE=jellyfin
+
+# Stop specific service in production
+make service-down ENV=prod SERVICE=jellyfin
 ```
 
 ## Resilience
 
-All services use the `unless-stopped` restart policy to automatically recover from crashes.
+All services use the `on-failure` restart policy to automatically recover from crashes.

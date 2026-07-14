@@ -13,9 +13,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Code Style Guidelines
 - YAML Indentation: Use 2 spaces
 - Docker Compose: Follow official naming conventions for services and volumes
-- Nginx Config: Follow standard nginx configuration patterns
+- Nginx Config: NGINX reverse proxy config is templated in `nginx/nginx.conf.template` using `${DOMAIN_SUFFIX}` for environment-specific server names
 - Comments: Use descriptive comments for service configurations
-- Network Configuration: Use Docker Swarm overlay networks with Traefik reverse proxy
+- Network Configuration: Use Docker Swarm overlay networks with NGINX reverse proxy
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media
 
@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docker-swarm-stack.yml` is the single source of truth for all service configurations
 - Service replicas are controlled via environment variables in env/.env.{ENV_NAME} files
 - Use `make env-up ENV=prod` or `make env-up ENV=preprod` to deploy specific environments
-- Only commit `env/.env.example` to git - other env files (.env.prod, .env.preprod) are gitignored
+- Environment files (env/.env.prod, env/.env.preprod) are tracked in git
 
 ## Cluster Management
 - The Docker Swarm cluster runs on remote infrastructure, not on the development machine
@@ -34,7 +34,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository Structure
 - `docker-swarm-stack.yml` - Main service stack configuration
 - `env/` - Environment-specific configuration files (.env.prod, .env.preprod)
-- Service configurations are organized by component (nginx, pihole, jellyfin)
+- `nginx/nginx.conf.template` - NGINX reverse proxy config template (envsubst generates per-environment configs at deploy time)
+- `pihole/` - Per-environment Pi-hole DNS and dnsmasq configuration
 - Container persistence volumes are mapped to local directories
 
 ## Allowed External Resources
