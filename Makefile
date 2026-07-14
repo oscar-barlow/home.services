@@ -87,7 +87,7 @@ env-up:
 	fi
 	@echo "📦 Generating resolved config files..."
 	@export $$(cat env/.env.$(ENV) | xargs) && \
-	envsubst '$${DOMAIN_SUFFIX}' < nginx/nginx.conf.template > nginx/nginx.$(ENV).conf && \
+	envsubst '$${DOMAIN_SUFFIX} $${ENV_NAME}' < nginx/nginx.conf.template > nginx/nginx.$(ENV).conf && \
 	envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
 	@echo "📦 Deploying homelab stack..."
 	docker stack deploy --detach=true --compose-file docker-swarm-stack.$(ENV).yml --prune homelab-$(ENV)

@@ -23,7 +23,7 @@ http {
         server_name pihole.${DOMAIN_SUFFIX};
 
         location / {
-            set $upstream_pihole pihole;
+            set $upstream_pihole homelab-${ENV_NAME}_pihole;
             proxy_pass http://$upstream_pihole:80;
         }
     }
@@ -34,7 +34,7 @@ http {
         client_max_body_size 10m;
 
         location / {
-            set $upstream_jellyfin jellyfin;
+            set $upstream_jellyfin homelab-${ENV_NAME}_jellyfin;
             proxy_pass http://$upstream_jellyfin:8096;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -50,7 +50,7 @@ http {
         server_name audiobookshelf.${DOMAIN_SUFFIX};
 
         location / {
-            set $upstream_audiobookshelf audiobookshelf;
+            set $upstream_audiobookshelf homelab-${ENV_NAME}_audiobookshelf;
             proxy_pass http://$upstream_audiobookshelf:80;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
@@ -63,7 +63,7 @@ http {
         server_name kavita.${DOMAIN_SUFFIX};
 
         location / {
-            set $upstream_kavita kavita;
+            set $upstream_kavita homelab-${ENV_NAME}_kavita;
             proxy_pass http://$upstream_kavita:5000;
         }
     }
@@ -73,7 +73,7 @@ http {
         server_name wiki.${DOMAIN_SUFFIX};
 
         location / {
-            set $upstream_wikijs wikijs;
+            set $upstream_wikijs homelab-${ENV_NAME}_wikijs;
             proxy_pass http://$upstream_wikijs:3000;
         }
     }
@@ -83,7 +83,7 @@ http {
         server_name release-manager.${DOMAIN_SUFFIX};
 
         location / {
-            set $upstream_release_manager release-manager;
+            set $upstream_release_manager homelab-${ENV_NAME}_release-manager;
             proxy_pass http://$upstream_release_manager:8080;
         }
     }
