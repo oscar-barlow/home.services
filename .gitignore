@@ -1,2 +1,6 @@
+# Pi-hole local configuration - exclude cache and runtime config, keep version-controlled files
+pihole/*/etc/dnsmasq.d/*
+!pihole/*/etc/dnsmasq.d/02-custom-dns.conf
+
 # generated stack files
 docker-swarm-stack.*.yml

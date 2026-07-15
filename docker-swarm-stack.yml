@@ -12,7 +12,7 @@ secrets:
 
 configs:
   pihole_custom_dns:
-    file: ./pihole/etc/dnsmasq.d/02-custom-dns.conf
+    file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
 
 services:
   pihole:
