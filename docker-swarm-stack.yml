@@ -13,8 +13,6 @@ secrets:
 configs:
   pihole_custom_dns:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
-  pihole_config:
-    file: ./pihole/${ENV_NAME}/etc/pihole/pihole.toml
 
 services:
   pihole:
@@ -25,6 +23,7 @@ services:
       FTLCONF_dns_listeningMode: 'all'
       FTLCONF_misc_etc_dnsmasq_d: 'true'
       FTLCONF_dns_upstreams: '1.1.1.1;8.8.8.8'
+      FTLCONF_files_macvendor: '/macvendor.db'
     dns:
       - 1.1.1.1
       - 8.8.8.8
@@ -33,9 +32,6 @@ services:
     configs:
       - source: pihole_custom_dns
         target: /etc/dnsmasq.d/02-custom-dns.conf
-        mode: 0644
-      - source: pihole_config
-        target: /etc/pihole/pihole.toml
         mode: 0644
     secrets:
       - pihole_web_password
