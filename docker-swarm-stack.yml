@@ -9,9 +9,6 @@ secrets:
   release_manager_github_token:
     name: release_manager_github_token_${ENV_NAME}
     external: true
-  pocket_id_encryption_key:
-    name: pocket_id_encryption_key_${ENV_NAME}
-    external: true
 
 configs:
   pihole_custom_dns:
@@ -166,45 +163,6 @@ services:
         - "traefik.http.services.audiobookshelf-${ENV_NAME}.loadbalancer.server.port=80"
         - "traefik.http.middlewares.compression-audiobookshelf-${ENV_NAME}.compress=true"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.middlewares=compression-audiobookshelf-${ENV_NAME}"
-      restart_policy:
-        condition: on-failure
-      placement:
-        constraints:
-          - node.labels.hardware == n100
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
-  pocket-id:
-    image: pocketid/pocket-id:${POCKET_ID_VERSION}
-    environment:
-      TZ: 'Europe/London'
-      APP_URL: 'https://pocket-id.${DOMAIN_SUFFIX}'
-      TRUST_PROXY: 'true'
-      ENCRYPTION_KEY_FILE: '/run/secrets/pocket_id_encryption_key'
-    secrets:
-      - pocket_id_encryption_key
-    volumes:
-      - /srv/data/${ENV_NAME}/pocket-id/data:/app/data
-    healthcheck:
-      test: [ "CMD", "/app/pocket-id", "healthcheck" ]
-      interval: 1m30s
-      timeout: 5s
-      retries: 2
-      start_period: 10s
-    networks:
-      - homelab-shared
-    deploy:
-      replicas: ${POCKET_ID_REPLICAS}
-      labels:
-        - "env=${ENV_NAME}"
-        - "traefik.enable=true"
-        - "traefik.http.routers.pocket-id-${ENV_NAME}.rule=Host(`pocket-id.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.services.pocket-id-${ENV_NAME}.loadbalancer.server.port=1411"
-        - "traefik.http.middlewares.compression-pocket-id-${ENV_NAME}.compress=true"
-        - "traefik.http.routers.pocket-id-${ENV_NAME}.middlewares=compression-pocket-id-${ENV_NAME}"
       restart_policy:
         condition: on-failure
       placement:
