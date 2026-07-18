@@ -10,7 +10,7 @@ secrets:
     name: release_manager_github_token_${ENV_NAME}
     external: true
   desec_token:
-    name: desec_token_${ENV_NAME}
+    name: desec_token_${ENV_NAME}_v2
     external: true
 
 configs:
