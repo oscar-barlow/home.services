@@ -9,10 +9,19 @@ secrets:
   release_manager_github_token:
     name: release_manager_github_token_${ENV_NAME}
     external: true
+  desec_token:
+    name: desec_token_${ENV_NAME}_v2
+    external: true
 
 configs:
+  # pihole_custom_dns is unused (kept only because swarm configs are
+  # immutable and this file/config pointer predates the rename); remove
+  # it in a separate piece of work once pihole_custom_dns_v2 is confirmed
+  # working.
   pihole_custom_dns:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
+  pihole_custom_dns_v2:
+    file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns-v2.conf
 
 services:
   pihole:
@@ -30,7 +39,7 @@ services:
     tmpfs:
       - /etc/pihole
     configs:
-      - source: pihole_custom_dns
+      - source: pihole_custom_dns_v2
         target: /etc/dnsmasq.d/02-custom-dns.conf
         mode: 0644
     secrets:
@@ -53,6 +62,10 @@ services:
         - "env=${ENV_NAME}"
         - "traefik.enable=true"
         - "traefik.http.routers.pihole-${ENV_NAME}.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.pihole-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.pihole-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.pihole-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.pihole-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.pihole-${ENV_NAME}.loadbalancer.server.port=80"
         - "traefik.http.middlewares.compression-pihole-${ENV_NAME}.compress=true"
         - "traefik.http.routers.pihole-${ENV_NAME}.middlewares=compression-pihole-${ENV_NAME}"
@@ -93,6 +106,10 @@ services:
         - "env=${ENV_NAME}"
         - "traefik.enable=true"
         - "traefik.http.routers.jellyfin-${ENV_NAME}.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.jellyfin-${ENV_NAME}.loadbalancer.server.port=8096"
         - "traefik.http.middlewares.compression-jellyfin-${ENV_NAME}.compress=true"
         - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
@@ -120,15 +137,28 @@ services:
       - "--providers.swarm=true"
       - "--providers.swarm.exposedbydefault=false"
       - "--entrypoints.web.address=:80"
+      - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+      - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
       - "--entrypoints.websecure.address=:443"
+      - "--certificatesresolvers.desec.acme.email=${ACME_EMAIL}"
+      - "--certificatesresolvers.desec.acme.storage=/letsencrypt/acme.json"
+      - "--certificatesresolvers.desec.acme.dnschallenge=true"
+      - "--certificatesresolvers.desec.acme.dnschallenge.provider=desec"
+      - "--certificatesresolvers.desec.acme.dnschallenge.resolvers=1.1.1.1:53,8.8.8.8:53"
       - "--log.level=INFO"
       - "--accesslog=true"
+    environment:
+      DESEC_TOKEN_FILE: '/run/secrets/desec_token'
+      LEGO_EXPERIMENTAL_CNAME_SUPPORT: 'true'
+    secrets:
+      - desec_token
     ports:
       - "${TRAEFIK_HTTP_PORT}:80"
       - "${TRAEFIK_HTTPS_PORT}:443"
       - "${TRAEFIK_DASHBOARD_PORT}:8080"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /srv/data/${ENV_NAME}/traefik/letsencrypt:/letsencrypt
     networks:
       - homelab-shared
     deploy:
@@ -160,6 +190,10 @@ services:
         - "env=${ENV_NAME}"
         - "traefik.enable=true"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.rule=Host(`audiobookshelf.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.audiobookshelf-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.audiobookshelf-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.audiobookshelf-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.audiobookshelf-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.audiobookshelf-${ENV_NAME}.loadbalancer.server.port=80"
         - "traefik.http.middlewares.compression-audiobookshelf-${ENV_NAME}.compress=true"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.middlewares=compression-audiobookshelf-${ENV_NAME}"
@@ -189,6 +223,10 @@ services:
         - "env=${ENV_NAME}"
         - "traefik.enable=true"
         - "traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.kavita-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.kavita-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.kavita-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.kavita-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.kavita-${ENV_NAME}.loadbalancer.server.port=5000"
         - "traefik.http.middlewares.compression-kavita-${ENV_NAME}.compress=true"
         - "traefik.http.routers.kavita-${ENV_NAME}.middlewares=compression-kavita-${ENV_NAME}"
