@@ -183,6 +183,8 @@ services:
       - /srv/data/${ENV_NAME}/audiobookshelf/Audiobooks:/audiobooks
       - /srv/data/${ENV_NAME}/audiobookshelf/config:/config
       - /srv/data/${ENV_NAME}/audiobookshelf/metadata:/metadata
+      - /srv/data/${ENV_NAME}/audiobookshelf/ChildrensAudiobooks:/ChildrensAudiobooks      
+      - /srv/data/${ENV_NAME}/audiobookshelf/Podcasts:/Podcasts
     environment:
       TZ: 'Europe/London'
     networks:
