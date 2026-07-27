@@ -280,7 +280,7 @@ services:
         condition: on-failure
       placement:
         constraints:
-          - node.labels.hardware == rpi-3
+          - node.labels.hardware == n100
       resources:
         limits:
           memory: 256M
