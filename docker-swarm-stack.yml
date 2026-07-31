@@ -87,8 +87,6 @@ services:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     ports:
       - "${JELLYFIN_HTTP_PORT}:8096"
-      - "${JELLYFIN_DLNA_PORT}:1900/udp"
-      - "${JELLYFIN_DISCOVERY_PORT}:7359/udp"
     volumes:
       - /var/cache/${ENV_NAME}/jellyfin:/cache
       - /srv/data/${ENV_NAME}/jellyfin/config:/config
@@ -115,11 +113,8 @@ services:
         - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.jellyfin-${ENV_NAME}.loadbalancer.server.port=8096"
         - "traefik.http.middlewares.compression-jellyfin-${ENV_NAME}.compress=true"
-        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.maxRequestBodyBytes=10000000"
-        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.memRequestBodyBytes=2000000"
-        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.maxResponseBodyBytes=10000000"
-        - "traefik.http.middlewares.buffering-jellyfin-${ENV_NAME}.buffering.memResponseBodyBytes=2000000"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.middlewares=compression-jellyfin-${ENV_NAME},buffering-jellyfin-${ENV_NAME}"
+        - "traefik.http.routers.jellyfin-${ENV_NAME}.middlewares=compression-jellyfin-${ENV_NAME}"
+        - "traefik.docker.network=homelab-shared"
       restart_policy:
         condition: on-failure
       placement:
