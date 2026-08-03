@@ -134,6 +134,8 @@ services:
       - "--api.insecure=true"
       - "--providers.swarm=true"
       - "--providers.swarm.exposedbydefault=false"
+      - "--providers.file.directory=/etc/traefik/dynamic"
+      - "--providers.file.watch=true"
       - "--entrypoints.web.address=:80"
       - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
       - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
@@ -157,6 +159,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /srv/data/${ENV_NAME}/traefik/letsencrypt:/letsencrypt
+      - /srv/data/${ENV_NAME}/traefik/dynamic:/etc/traefik/dynamic:ro
     networks:
       - homelab-shared
     deploy:
@@ -228,6 +231,7 @@ services:
         - "traefik.http.routers.kavita-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
         - "traefik.http.routers.kavita-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
         - "traefik.http.services.kavita-${ENV_NAME}.loadbalancer.server.port=5000"
+        - "traefik.http.routers.kavita-${ENV_NAME}.tls.options=compat@file"
         - "traefik.http.middlewares.compression-kavita-${ENV_NAME}.compress=true"
         - "traefik.http.routers.kavita-${ENV_NAME}.middlewares=compression-kavita-${ENV_NAME}"
       restart_policy:
