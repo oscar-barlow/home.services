@@ -277,8 +277,6 @@ services:
   trek:
     image: mauriceboe/trek:${TREK_VERSION}
     read_only: true
-    security_opt:
-      - no-new-privileges:true
     cap_drop:
       - ALL
     cap_add:
