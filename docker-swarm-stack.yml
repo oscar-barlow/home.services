@@ -354,7 +354,8 @@ services:
       POSTGRES_INITDB_ARGS: '--data-checksums'
     secrets:
       - immich_db_password
-    shm_size: 128mb
+    tmpfs:
+      - /dev/shm:size=128m
     volumes:
       - /srv/data/${ENV_NAME}/immich/postgres:/var/lib/postgresql/data
     networks:
