@@ -333,6 +333,7 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_REDIS_REPLICAS}
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -360,6 +361,7 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_DB_REPLICAS}
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -381,6 +383,7 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_ML_REPLICAS}
+      endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
       placement:
@@ -409,6 +412,7 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_REPLICAS}
+      endpoint_mode: dnsrr
       labels:
         - "traefik.enable=true"
         - "traefik.http.routers.immich-${ENV_NAME}.rule=Host(`immich.${DOMAIN_SUFFIX}`)"
