@@ -15,6 +15,9 @@ secrets:
   pocket_id_encryption_key:
     name: pocket_id_encryption_key_${ENV_NAME}
     external: true
+  immich_db_password:
+    name: immich_db_password_${ENV_NAME}
+    external: true
 
 configs:
   # pihole_custom_dns is unused (kept only because swarm configs are
@@ -25,6 +28,8 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_custom_dns_v2:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns-v2.conf
+  immich_config:
+    file: ./immich/${ENV_NAME}/immich-config.json
 
 services:
   pihole:
@@ -290,6 +295,7 @@ services:
       PORT: '3000'
       TZ: 'Europe/London'
       LOG_LEVEL: 'info'
+      ALLOW_INTERNAL_NETWORK: 'true'
       APP_URL: 'https://trek.${DOMAIN_SUFFIX}'
     volumes:
       - /srv/data/${ENV_NAME}/trek/data:/app/data
@@ -322,3 +328,107 @@ services:
           memory: 512M
         reservations:
           memory: 256M
+
+  immich-redis:
+    image: docker.io/valkey/valkey:9
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${IMMICH_REDIS_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  immich-postgres:
+    image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
+    environment:
+      POSTGRES_USER: 'immich'
+      POSTGRES_PASSWORD_FILE: '/run/secrets/immich_db_password'
+      POSTGRES_DB: 'immich'
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    secrets:
+      - immich_db_password
+    shm_size: 128mb
+    volumes:
+      - /srv/data/${ENV_NAME}/immich/postgres:/var/lib/postgresql/data
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${IMMICH_DB_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION}
+    volumes:
+      - /srv/data/${ENV_NAME}/immich/model-cache:/cache
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${IMMICH_ML_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 1G
+
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      DB_HOSTNAME: 'homelab-${ENV_NAME}_immich-postgres'
+      DB_USERNAME: 'immich'
+      DB_PASSWORD_FILE: '/run/secrets/immich_db_password'
+      DB_DATABASE_NAME: 'immich'
+      REDIS_HOSTNAME: 'homelab-${ENV_NAME}_immich-redis'
+      IMMICH_CONFIG_FILE: '/config/immich-config.json'
+    secrets:
+      - immich_db_password
+    configs:
+      - source: immich_config
+        target: /config/immich-config.json
+        mode: 0644
+    volumes:
+      - /srv/data/${ENV_NAME}/immich/upload:/data
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${IMMICH_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.immich-${ENV_NAME}.rule=Host(`immich.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.immich-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.immich-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.immich-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.immich-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
+        - "traefik.http.services.immich-${ENV_NAME}.loadbalancer.server.port=2283"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 1.5G
+        reservations:
+          memory: 768M

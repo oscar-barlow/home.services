@@ -1,0 +1,5 @@
+{
+  "machineLearning": {
+    "urls": ["http://homelab-preprod_immich-machine-learning:3003"]
+  }
+}
