@@ -28,8 +28,6 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_custom_dns_v2:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns-v2.conf
-  immich_config:
-    file: ./immich/${ENV_NAME}/immich-config.json
 
 services:
   pihole:
@@ -373,6 +371,8 @@ services:
         reservations:
           memory: 512M
 
+  # after deploy: point Admin > Settings > Machine Learning > URL at
+  # http://homelab-${ENV_NAME}_immich-machine-learning:3003 (not the default)
   immich-machine-learning:
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION}
     volumes:
@@ -401,13 +401,8 @@ services:
       DB_PASSWORD_FILE: '/run/secrets/immich_db_password'
       DB_DATABASE_NAME: 'immich'
       REDIS_HOSTNAME: 'homelab-${ENV_NAME}_immich-redis'
-      IMMICH_CONFIG_FILE: '/config/immich-config.json'
     secrets:
       - immich_db_password
-    configs:
-      - source: immich_config
-        target: /config/immich-config.json
-        mode: 0644
     volumes:
       - /srv/data/${ENV_NAME}/immich/upload:/data
     networks:
