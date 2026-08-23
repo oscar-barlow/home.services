@@ -429,6 +429,6 @@ services:
           - node.labels.hardware == n100
       resources:
         limits:
-          memory: 2.5G
+          memory: 4G
         reservations:
           memory: 768M
