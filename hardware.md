@@ -6,6 +6,10 @@
 - **Storage**: 256GB total
 - **Ethernet**: Motorcomm YT6801 Gigabit Controller (PCI ID: 1f0a:6801)
 - **Issue**: No mainline Linux driver support
+- **iGPU**: Intel UHD Graphics (Alder Lake-N) with Quick Sync Video.
+  Hardware decode for H.264/HEVC/VP9/AV1 and encode for H.264/HEVC/VP9.
+  Exposed at `/dev/dri/renderD128` and used by Jellyfin for hardware
+  transcoding (see the `jellyfin` service in `docker-swarm-stack.yml`).
 
 ## Operating System Installation
 

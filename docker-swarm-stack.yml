@@ -97,6 +97,14 @@ services:
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensClips:/ChildrensClips
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
       - /srv/data/${ENV_NAME}/jellyfin/Classical:/Classical
+      # Intel Quick Sync (iGPU) passthrough for hardware transcoding.
+      # Swarm ignores the `devices:` key, so the render node is bind-mounted
+      # as a volume and access is granted via group_add below.
+      - /dev/dri:/dev/dri
+    # GID of the host's `render` group (find it on the n100 with
+    # `getent group render`). Lets the container open /dev/dri/renderD128.
+    group_add:
+      - "${JELLYFIN_RENDER_GID}"
     tmpfs:
       - /tmp/jellyfin
     networks:
