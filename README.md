@@ -25,6 +25,15 @@ A collection of containerized services for a home network environment.
   - ChildrensMovies
 - Configuration persisted in `./jellyfin/config`
 
+### Home Assistant
+- Home automation platform
+- Web interface on port 8123, proxied by Traefik at `home-assistant.${DOMAIN_SUFFIX}`
+- Configuration persisted in `/srv/data/${ENV_NAME}/home-assistant/config`
+- Runs on `n100` hardware
+- Note: when accessed via the Traefik reverse proxy, add an `http:` block with
+  `use_x_forwarded_for` and the Docker overlay subnet under `trusted_proxies`
+  to `configuration.yaml` on first boot
+
 ## Network
 
 Services use macvlan networking to get direct IP addresses on the local network. The network infrastructure is managed separately from application services.
