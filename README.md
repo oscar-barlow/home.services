@@ -30,9 +30,12 @@ A collection of containerized services for a home network environment.
 - Web interface on port 8123, proxied by Traefik at `home-assistant.${DOMAIN_SUFFIX}`
 - Configuration persisted in `/srv/data/${ENV_NAME}/home-assistant/config`
 - Runs on `n100` hardware
-- Note: when accessed via the Traefik reverse proxy, add an `http:` block with
-  `use_x_forwarded_for` and the Docker overlay subnet under `trusted_proxies`
-  to `configuration.yaml` on first boot
+- Reverse proxy: because HA sits behind Traefik it will refuse proxied
+  requests until the proxy is trusted. As of HA 2026.8 this is configured in
+  the UI (the `http:` block in `configuration.yaml` is no longer read on a
+  fresh install), under **Settings > System > Network > HTTP server**: enable
+  **Trust X-Forwarded-For** and add the `homelab-shared` overlay subnet (e.g.
+  `10.10.0.0/16`) as a trusted proxy. Use the network address, not a host IP.
 
 ## Network
 
