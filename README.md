@@ -31,21 +31,23 @@ A collection of containerized services for a home network environment.
 - Configuration persisted in `/srv/data/${ENV_NAME}/home-assistant/config`
 - Runs on `n100` hardware
 - Reverse proxy: because HA sits behind Traefik it returns `400: Bad Request`
-  to proxied requests until the proxy is trusted. As of HA 2026.8 the `http:`
-  block is migrated into HA's internal store **once, on first boot**, and
-  ignored thereafter — so the trust must be in place before HA first starts.
-  Seed the committed [`home-assistant/configuration.yaml`](home-assistant/configuration.yaml)
-  into the config dir **before the first deploy** of each environment:
+  to proxied requests until the proxy is trusted. HA owns and rewrites its own
+  `configuration.yaml` and `.storage/` files (the UI edits them), so these are
+  edited in place on the node rather than shipped from this repo. Add an
+  `http:` block to `configuration.yaml`:
 
-  ```bash
-  sudo mkdir -p /srv/data/${ENV}/home-assistant/config
-  sudo cp home-assistant/configuration.yaml \
-    /srv/data/${ENV}/home-assistant/config/configuration.yaml
+  ```yaml
+  http:
+    use_x_forwarded_for: true
+    trusted_proxies:
+      - 10.10.0.0/16   # homelab-shared overlay subnet
+      - 127.0.0.1
   ```
 
-  If an environment already booted once without the block (migration ran
-  empty, so you see the 400), reset just the http store so the block
-  re-migrates — no UI or port juggling needed:
+  As of HA 2026.8 this block is migrated into `.storage/http` **once, on first
+  boot**, then ignored — so it must be present before HA first starts. If HA
+  already booted without it (migration ran empty, so you see the 400), reset
+  just the http store so the block re-migrates on restart:
 
   ```bash
   docker service scale homelab-${ENV}_home-assistant=0
