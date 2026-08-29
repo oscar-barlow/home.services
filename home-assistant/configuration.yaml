@@ -1,0 +1,40 @@
+# Seed configuration for Home Assistant.
+#
+# WHY THIS EXISTS
+# As of HA 2026.8, the `http:` block below is no longer read live on every
+# boot. Instead, on the FIRST boot HA migrates it once into its internal
+# store (.storage/http) and then sets `yaml_migration_done: true`; after
+# that, this block is ignored. Because HA sits behind Traefik, it rejects
+# proxied requests with `400: Bad Request` until the proxy is trusted — and
+# the admin UI is itself behind the proxy, so you cannot fix it after the
+# fact without bypassing Traefik.
+#
+# The reliable, declarative fix is to have this file already present in the
+# config dir BEFORE the service is deployed for the first time, so the
+# one-time migration picks up the trusted-proxy settings automatically.
+#
+# ONE-TIME SEEDING (per environment, before the first `make env-up`):
+#   sudo mkdir -p /srv/data/${ENV}/home-assistant/config
+#   sudo cp home-assistant/configuration.yaml \
+#     /srv/data/${ENV}/home-assistant/config/configuration.yaml
+#
+# If an environment has ALREADY booted once without the http block (so the
+# migration ran empty), reset just the http store and restart so this block
+# re-migrates:
+#   docker service scale homelab-${ENV}_home-assistant=0
+#   sudo rm /srv/data/${ENV}/home-assistant/config/.storage/http
+#   docker service scale homelab-${ENV}_home-assistant=1
+#
+# HA owns this file at runtime (the UI writes back to it), so it is copied
+# in as a seed, not bind-mounted read-only.
+
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Trust the Traefik reverse proxy on the homelab-shared overlay network so
+# HA honours X-Forwarded-For instead of returning 400 to proxied requests.
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 10.10.0.0/16
+    - 127.0.0.1
