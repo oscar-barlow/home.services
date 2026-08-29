@@ -40,14 +40,23 @@ A collection of containerized services for a home network environment.
   http:
     use_x_forwarded_for: true
     trusted_proxies:
-      - 10.10.0.0/16   # homelab-shared overlay subnet
+      # Trust the whole Docker-internal address space. HA validates every hop
+      # in the X-Forwarded-For chain, and the Traefik->HA hop can appear on the
+      # overlay (10.10.x), the swarm ingress mesh (10.0.0.x) or docker_gwbridge
+      # (172.18.x) depending on path — a single subnet leaves some requests 400.
+      # Safe because HA has no published port, so only Traefik can reach it.
+      - 10.0.0.0/8
+      - 172.16.0.0/12
       - 127.0.0.1
   ```
 
   As of HA 2026.8 this block is migrated into `.storage/http` **once, on first
   boot**, then ignored — so it must be present before HA first starts. If HA
   already booted without it (migration ran empty, so you see the 400), reset
-  just the http store so the block re-migrates on restart:
+  just the http store so the block re-migrates on restart (once HA is
+  reachable you can instead edit trusted proxies in the UI under
+  **Settings > System > Network > HTTP server**, which writes the store
+  directly):
 
   ```bash
   docker service scale homelab-${ENV}_home-assistant=0
