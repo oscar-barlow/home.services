@@ -1,0 +1,31 @@
+services:
+  jellyfin:
+    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
+    container_name: jellyfin-${ENV_NAME}
+    restart: unless-stopped
+    devices:
+      - /dev/dri:/dev/dri
+    group_add:
+      - "${JELLYFIN_RENDER_GID}"
+    ports:
+      - "${JELLYFIN_HTTP_PORT}:8096"
+    volumes:
+      - /var/cache/${ENV_NAME}/jellyfin:/cache
+      - /srv/data/${ENV_NAME}/jellyfin/config:/config
+      - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
+      - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
+      - /srv/data/${ENV_NAME}/jellyfin/TV:/TV
+      - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
+      - /srv/data/${ENV_NAME}/jellyfin/ChildrensClips:/ChildrensClips
+      - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
+      - /srv/data/${ENV_NAME}/jellyfin/Classical:/Classical
+    tmpfs:
+      - /tmp/jellyfin
+    networks:
+      homelab-shared:
+        aliases:
+          - jellyfin-${ENV_NAME}
+
+networks:
+  homelab-shared:
+    external: true

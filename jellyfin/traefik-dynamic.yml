@@ -1,0 +1,18 @@
+http:
+  routers:
+    jellyfin-${ENV_NAME}:
+      rule: "Host(`jellyfin.${DOMAIN_SUFFIX}`)"
+      entryPoints:
+        - websecure
+      service: jellyfin-${ENV_NAME}
+      tls:
+        certResolver: desec
+        domains:
+          - main: "${DOMAIN_SUFFIX}"
+            sans:
+              - "*.${DOMAIN_SUFFIX}"
+  services:
+    jellyfin-${ENV_NAME}:
+      loadBalancer:
+        servers:
+          - url: "http://jellyfin-${ENV_NAME}:8096"

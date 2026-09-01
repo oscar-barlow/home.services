@@ -83,46 +83,6 @@ services:
         reservations:
           memory: 128M
 
-  jellyfin:
-    image: jellyfin/jellyfin:${JELLYFIN_VERSION}
-    ports:
-      - "${JELLYFIN_HTTP_PORT}:8096"
-    volumes:
-      - /var/cache/${ENV_NAME}/jellyfin:/cache
-      - /srv/data/${ENV_NAME}/jellyfin/config:/config
-      - /srv/data/${ENV_NAME}/jellyfin/Music:/Music
-      - /srv/data/${ENV_NAME}/jellyfin/Movies:/Movies
-      - /srv/data/${ENV_NAME}/jellyfin/TV:/TV
-      - /srv/data/${ENV_NAME}/jellyfin/ChildrensMovies:/ChildrensMovies
-      - /srv/data/${ENV_NAME}/jellyfin/ChildrensClips:/ChildrensClips
-      - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
-      - /srv/data/${ENV_NAME}/jellyfin/Classical:/Classical
-    tmpfs:
-      - /tmp/jellyfin
-    networks:
-      - homelab-shared
-    deploy:
-      replicas: ${JELLYFIN_REPLICAS}
-      labels:
-        - "traefik.enable=true"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.rule=Host(`jellyfin.${DOMAIN_SUFFIX}`)"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls=true"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.certresolver=desec"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
-        - "traefik.http.routers.jellyfin-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
-        - "traefik.http.services.jellyfin-${ENV_NAME}.loadbalancer.server.port=8096"
-      restart_policy:
-        condition: on-failure
-      placement:
-        constraints:
-          - node.labels.hardware == n100
-      resources:
-        limits:
-          memory: 1.5G
-        reservations:
-          memory: 768M
-
-
   home-assistant:
     image: ghcr.io/home-assistant/home-assistant:${HOME_ASSISTANT_VERSION}
     environment:

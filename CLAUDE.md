@@ -14,7 +14,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - YAML Indentation: Use 2 spaces
 - Docker Compose: Follow official naming conventions for services and volumes
 - Nginx Config: Follow standard nginx configuration patterns
-- Comments: Use descriptive comments for service configurations
+- Comments: Only add comments to code/config when the user explicitly requests them; otherwise leave the code to speak for itself
 - Network Configuration: Use Docker Swarm overlay networks with Traefik reverse proxy
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media

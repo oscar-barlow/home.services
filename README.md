@@ -17,13 +17,10 @@ A collection of containerized services for a home network environment.
 - Log rotation configured (10M max size, 3 files)
 
 ### Jellyfin
-- Media server using host networking
-- Access to media directories:
-  - Music
-  - Movies
-  - Books
-  - ChildrensMovies
-- Configuration persisted in `./jellyfin/config`
+- Media server with Intel Quick Sync hardware transcoding
+- Runs as a standalone container (outside the Swarm stack) for iGPU access; see [jellyfin/README.md](jellyfin/README.md)
+- Started and stopped with the environment via `make env-up` / `make env-down`
+- Configuration persisted in `/srv/data/${ENV_NAME}/jellyfin/config`
 
 ### Home Assistant
 - Home automation platform
