@@ -267,6 +267,8 @@ jellyfin-down:
 list-services:
 	@echo "📋 Services for environment: $(ENV)"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
+	@echo "📋 Standalone containers for environment: $(ENV)"
+	docker ps --filter label=com.docker.compose.project=jellyfin-$(ENV) --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
 network-up:
 	@echo "🚀 Creating Docker network"
