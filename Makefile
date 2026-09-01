@@ -1,8 +1,9 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down service-remove swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node jellyfin-up jellyfin-down list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down service-remove swarm-init swarm-join swarm-deploy swarm-down
 
 # Default environment if not specified
 ENV ?= preprod
 SERVICE ?=
+TRAEFIK_DYNAMIC_DIR ?= /srv/data/prod/traefik/dynamic
 
 help:
 	@echo "Available commands:"
@@ -12,6 +13,8 @@ help:
 	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
 	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
 	@echo "  inspect-node   - Inspect Docker Swarm node details (requires HOSTNAME)"
+	@echo "  jellyfin-up    - Start standalone GPU Jellyfin for ENV (default: preprod)"
+	@echo "  jellyfin-down  - Stop standalone Jellyfin for ENV (default: preprod)"
 	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
 	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
 	@echo "  list-services  - List services for ENV (default: preprod)"
@@ -69,6 +72,7 @@ backup-install:
 
 env-down:
 	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
+	@$(MAKE) jellyfin-down ENV=$(ENV)
 	@echo "🔍 Checking if stack exists..."
 	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
 		echo "📦 Removing homelab-$(ENV) stack..."; \
@@ -91,6 +95,7 @@ env-up:
 	@echo "📦 Deploying homelab stack..."
 	docker stack deploy --detach=true --compose-file docker-swarm-stack.$(ENV).yml --prune homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
+	@$(MAKE) jellyfin-up ENV=$(ENV)
 	@echo "📋 Current services:"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
@@ -239,6 +244,25 @@ lvm-init:
 	@sudo lvs homelab-vg
 	@df -h /srv/data
 
+
+jellyfin-up:
+	@echo "🚀 Deploying standalone GPU Jellyfin for environment: $(ENV)"
+	@if [ ! -d "$(TRAEFIK_DYNAMIC_DIR)" ]; then \
+		echo "❌ Error: Traefik dynamic dir $(TRAEFIK_DYNAMIC_DIR) not found. Deploy the swarm stack (Traefik) first."; \
+		exit 1; \
+	fi
+	@echo "📝 Rendering Traefik route..."
+	@export $$(cat env/.env.$(ENV) | xargs) && \
+		envsubst < jellyfin/traefik-dynamic.yml > $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
+	@echo "📦 Starting Jellyfin container..."
+	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml up -d
+	@echo "✅ Jellyfin ($(ENV)) is up"
+
+jellyfin-down:
+	@echo "🛑 Stopping standalone Jellyfin for environment: $(ENV)"
+	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml down
+	@rm -f $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
+	@echo "✅ Jellyfin ($(ENV)) stopped"
 
 list-services:
 	@echo "📋 Services for environment: $(ENV)"
