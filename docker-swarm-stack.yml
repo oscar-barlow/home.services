@@ -98,8 +98,6 @@ services:
       - /srv/data/${ENV_NAME}/jellyfin/ChildrensTV:/ChildrensTV
       - /srv/data/${ENV_NAME}/jellyfin/Classical:/Classical
       - /dev/dri:/dev/dri
-    group_add:
-      - "${JELLYFIN_RENDER_GID}"
     tmpfs:
       - /tmp/jellyfin
     networks:
