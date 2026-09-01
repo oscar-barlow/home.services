@@ -83,6 +83,35 @@ services:
         reservations:
           memory: 128M
 
+  home-assistant:
+    image: ghcr.io/home-assistant/home-assistant:${HOME_ASSISTANT_VERSION}
+    environment:
+      TZ: 'Europe/London'
+    volumes:
+      - /srv/data/${ENV_NAME}/home-assistant/config:/config
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${HOME_ASSISTANT_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.home-assistant-${ENV_NAME}.rule=Host(`home-assistant.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.home-assistant-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.home-assistant-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.home-assistant-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.home-assistant-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
+        - "traefik.http.services.home-assistant-${ENV_NAME}.loadbalancer.server.port=8123"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
   traefik:
     image: traefik:${TRAEFIK_VERSION}
     command:

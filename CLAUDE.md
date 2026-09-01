@@ -23,7 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - `docker-swarm-stack.yml` is the single source of truth for all service configurations
 - Service replicas are controlled via environment variables in env/.env.{ENV_NAME} files
 - Use `make env-up ENV=prod` or `make env-up ENV=preprod` to deploy specific environments
-- Only commit `env/.env.example` to git - other env files (.env.prod, .env.preprod) are gitignored
+- Environment files `env/.env.prod` and `env/.env.preprod` are tracked in git and hold each environment's service versions and replica counts
 
 ## Cluster Management
 - The Docker Swarm cluster runs on remote infrastructure, not on the development machine
