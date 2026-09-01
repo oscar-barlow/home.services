@@ -63,6 +63,41 @@ A collection of containerized services for a home network environment.
   sudo rm /srv/data/${ENV}/home-assistant/config/.storage/http
   docker service scale homelab-${ENV}_home-assistant=1
   ```
+- SSO via Pocket ID: HA has no built-in OIDC support, and fronting it with an
+  auth proxy (Traefik forward-auth / oauth2-proxy) breaks the companion app and
+  API, which depend on HA's own token auth. Instead use the
+  [`hass-oidc-auth`](https://github.com/christiaangoossens/hass-oidc-auth)
+  custom auth provider, which plugs into HA's native auth (so the web UI and the
+  app both keep working). Like the rest of HA's config this is applied in place
+  on the node, not shipped from this repo:
+
+  1. In Pocket ID, add an OIDC client — name `Home Assistant`, callback
+     `https://home-assistant.${DOMAIN_SUFFIX}/auth/oidc/callback`, type
+     **Public Client** (PKCE, no secret to manage). Note the Client ID.
+  2. Install the component into
+     `/srv/data/${ENV_NAME}/home-assistant/config/custom_components/auth_oidc/`
+     (via HACS, or by extracting a release into that folder).
+  3. Add to `configuration.yaml` and restart the service (a normal restart —
+     this is ordinary integration config, not the `http` store migration):
+
+     ```yaml
+     auth_oidc:
+       client_id: "<client id from Pocket ID>"
+       discovery_url: "https://pocket-id.${DOMAIN_SUFFIX}/.well-known/openid-configuration"
+       display_name: "Pocket ID"
+       features:
+         automatic_person_creation: true
+         # force_https: true   # only if the redirect_uri comes back as http://
+       # Optional role mapping from Pocket ID groups:
+       # roles:
+       #   admin: <your-ha-admins group name>
+     ```
+
+  This adds an OIDC login button *alongside* the built-in username/password
+  provider — keep a local admin account so you are not locked out if Pocket ID
+  is down. Use a recent companion-app version (older ones predate the in-app
+  OIDC flow). TLS verification can stay on: HA reaches Pocket ID over the real
+  deSEC/Let's Encrypt cert, so no private-CA path is needed.
 
 ## Network
 
