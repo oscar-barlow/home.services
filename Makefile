@@ -253,7 +253,7 @@ jellyfin-up:
 	fi
 	@echo "📝 Rendering Traefik route..."
 	@export $$(cat env/.env.$(ENV) | xargs) && \
-		envsubst < jellyfin/traefik-dynamic.yml > $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
+		envsubst < jellyfin/traefik-dynamic.yml | sudo tee $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml >/dev/null
 	@echo "📦 Starting Jellyfin container..."
 	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml up -d
 	@echo "✅ Jellyfin ($(ENV)) is up"
@@ -261,7 +261,7 @@ jellyfin-up:
 jellyfin-down:
 	@echo "🛑 Stopping standalone Jellyfin for environment: $(ENV)"
 	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml down
-	@rm -f $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
+	@sudo rm -f $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
 	@echo "✅ Jellyfin ($(ENV)) stopped"
 
 list-services:
