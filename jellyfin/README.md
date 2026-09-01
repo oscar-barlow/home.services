@@ -24,6 +24,12 @@ host `render` group grants access properly.
   cannot watch multiple directories or recurse into subdirectories. Per-env
   separation would require per-env Traefik instances (see network.md, Future
   Improvements).
+- `/srv/data` is NFS-shared to the Traefik node, and Traefik's file-provider
+  watch (inotify) does not fire for a file written by a different NFS client.
+  So `jellyfin-up` compares the rendered route against the deployed one and,
+  when it changed, forces a Traefik reload (`docker service update --force`) to
+  make it re-scan the directory. Unchanged routes skip the reload, so routine
+  deploys don't bounce the proxy.
 - All state (users, libraries, playlists, metadata) persists in
   `/srv/data/${ENV_NAME}/jellyfin/config`, unchanged from the previous Swarm
   deployment.

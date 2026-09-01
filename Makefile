@@ -4,6 +4,7 @@
 ENV ?= preprod
 SERVICE ?=
 TRAEFIK_DYNAMIC_DIR ?= /srv/data/prod/traefik/dynamic
+TRAEFIK_SERVICE ?= homelab-prod_traefik
 
 help:
 	@echo "Available commands:"
@@ -253,7 +254,15 @@ jellyfin-up:
 	fi
 	@echo "📝 Rendering Traefik route..."
 	@export $$(cat env/.env.$(ENV) | xargs) && \
-		envsubst < jellyfin/traefik-dynamic.yml | sudo tee $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml >/dev/null
+		envsubst < jellyfin/traefik-dynamic.yml > /tmp/jellyfin-$(ENV).route.yml
+	@if sudo cmp -s /tmp/jellyfin-$(ENV).route.yml $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml 2>/dev/null; then \
+		echo "✅ Traefik route unchanged"; \
+	else \
+		echo "🔁 Route changed — installing and reloading Traefik (inotify misses NFS writes)..."; \
+		sudo cp /tmp/jellyfin-$(ENV).route.yml $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml; \
+		docker service update --force $(TRAEFIK_SERVICE) >/dev/null; \
+	fi
+	@rm -f /tmp/jellyfin-$(ENV).route.yml
 	@echo "📦 Starting Jellyfin container..."
 	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml up -d
 	@echo "✅ Jellyfin ($(ENV)) is up"
@@ -262,6 +271,7 @@ jellyfin-down:
 	@echo "🛑 Stopping standalone Jellyfin for environment: $(ENV)"
 	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml down
 	@sudo rm -f $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
+	@docker service update --force $(TRAEFIK_SERVICE) >/dev/null 2>&1 || true
 	@echo "✅ Jellyfin ($(ENV)) stopped"
 
 list-services:
