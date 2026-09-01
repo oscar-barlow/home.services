@@ -17,8 +17,13 @@ host `render` group grants access properly.
   under the alias `jellyfin-${ENV_NAME}`.
 - Routed by the existing Traefik instance via its **file provider**. On deploy,
   `traefik-dynamic.yml` is rendered to
-  `/srv/data/prod/traefik/dynamic/jellyfin-${ENV_NAME}.yml` (the single Traefik
-  reads that directory), pointing at `http://jellyfin-${ENV_NAME}:8096`.
+  `/srv/data/prod/traefik/dynamic/jellyfin-${ENV_NAME}.yml`, pointing at
+  `http://jellyfin-${ENV_NAME}:8096`. Both prod and preprod routes land in the
+  prod tree because a single Traefik instance (a prod-stack service) routes both
+  environments, and its file provider watches only that one directory — it
+  cannot watch multiple directories or recurse into subdirectories. Per-env
+  separation would require per-env Traefik instances (see network.md, Future
+  Improvements).
 - All state (users, libraries, playlists, metadata) persists in
   `/srv/data/${ENV_NAME}/jellyfin/config`, unchanged from the previous Swarm
   deployment.
