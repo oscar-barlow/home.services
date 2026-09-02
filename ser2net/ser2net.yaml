@@ -1,0 +1,8 @@
+%YAML 1.1
+---
+connection: &zigbee-coordinator
+  accepter: tcp,3333
+  enable: on
+  options:
+    kickolduser: true
+  connector: serialdev,/dev/ttyUSB0,115200n81,local

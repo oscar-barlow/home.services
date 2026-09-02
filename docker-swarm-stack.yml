@@ -28,6 +28,8 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf
   pihole_custom_dns_v2:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns-v2.conf
+  mosquitto_config:
+    file: ./mosquitto/mosquitto.conf
 
 services:
   pihole:
@@ -111,6 +113,60 @@ services:
           memory: 1G
         reservations:
           memory: 512M
+
+  mosquitto:
+    image: eclipse-mosquitto:${MOSQUITTO_VERSION}
+    configs:
+      - source: mosquitto_config
+        target: /mosquitto/config/mosquitto.conf
+        mode: 0644
+    volumes:
+      - /srv/data/${ENV_NAME}/mosquitto/data:/mosquitto/data
+    ports:
+      - "${MOSQUITTO_MQTT_PORT}:1883"
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${MOSQUITTO_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == rpi-3
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+
+  zigbee2mqtt:
+    image: koenkk/zigbee2mqtt:${ZIGBEE2MQTT_VERSION}
+    environment:
+      TZ: 'Europe/London'
+    volumes:
+      - /srv/data/${ENV_NAME}/zigbee2mqtt/data:/app/data
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${ZIGBEE2MQTT_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.rule=Host(`zigbee2mqtt.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
+        - "traefik.http.services.zigbee2mqtt-${ENV_NAME}.loadbalancer.server.port=8080"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
 
   traefik:
     image: traefik:${TRAEFIK_VERSION}

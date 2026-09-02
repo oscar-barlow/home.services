@@ -1,0 +1,19 @@
+homeassistant:
+  enabled: true
+
+frontend:
+  enabled: true
+  port: 8080
+
+mqtt:
+  server: mqtt://homelab-prod_mosquitto:1883
+  base_topic: zigbee2mqtt
+
+serial:
+  port: tcp://ser2net-prod:3333
+  adapter: zstack
+
+advanced:
+  channel: 25
+  network_key: GENERATE
+  log_level: info

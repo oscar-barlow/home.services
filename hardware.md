@@ -98,7 +98,9 @@ iface enp1s0 inet dhcp
 When joining nodes to the Docker Swarm, use standardized labels to identify hardware and capacity:
 
 ### Hardware Labels (`LABEL_HARDWARE`)
-- `rpi-4` - Raspberry Pi 4  
+- `rpi-3` - Raspberry Pi 3 (the current cluster's Pi; runs Traefik + Pi-hole,
+  and the Zigbee dongle attaches here)
+- `rpi-4` - Raspberry Pi 4
 - `n100` - N100 Mini PC (like Geekom Mini Air12-0)
 
 ### Class Labels (`LABEL_CLASS`)

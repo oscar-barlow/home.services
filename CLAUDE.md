@@ -19,6 +19,16 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Environment Variables: Use quotes for values with special characters
 - Mount Points: Use relative paths for container config, absolute paths for media
 
+## Boy Scout Principle
+- Leave the codebase and docs better than you found them. Homelab work
+  routinely surfaces documentation that is stale or contradicted by the code
+  (sometimes the same inaccuracy more than once).
+- When you touch an area and notice a doc that is wrong, fix it in passing —
+  challenge claims against the actual code/config rather than trusting the
+  prose, and remove or correct inaccuracies rather than working around them.
+- Keep such cleanups scoped to what you can verify; don't invent behaviour to
+  fill a gap.
+
 ## Configuration Management
 - `docker-swarm-stack.yml` is the single source of truth for all service configurations
 - Service replicas are controlled via environment variables in env/.env.{ENV_NAME} files

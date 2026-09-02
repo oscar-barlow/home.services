@@ -4,16 +4,19 @@ A collection of containerized services for a home network environment.
 
 ## Services
 
-### Nginx
-- Reverse proxy on ports 80 (HTTP) and 443 (HTTPS)
-- Configuration in `./nginx/conf.d`
-- SSL certificates in `./nginx/certs`
+### Traefik
+- Reverse proxy and ingress for all HTTP services, on ports 80 (HTTP, redirected
+  to HTTPS) and 443 (HTTPS)
+- Wildcard TLS via Let's Encrypt using the deSEC DNS-01 challenge
+- Discovers Swarm services via labels; standalone containers (Jellyfin) are
+  routed via its file provider — see [jellyfin/README.md](jellyfin/README.md)
+- Runs on the `rpi-3` node in prod
 
 ### Pi-hole
 - DNS filtering and ad blocking
-- Web interface on port 81
+- Web interface proxied by Traefik at `pihole.${DOMAIN_SUFFIX}`
 - DNS services on port 53 (TCP/UDP)
-- Custom DNS configurations via `custom-dns.conf`
+- Custom DNS configuration via `pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf`
 - Log rotation configured (10M max size, 3 files)
 
 ### Jellyfin
@@ -96,26 +99,39 @@ A collection of containerized services for a home network environment.
   OIDC flow). TLS verification can stay on: HA reaches Pocket ID over the real
   deSEC/Let's Encrypt cert, so no private-CA path is needed.
 
+### Zigbee (Zigbee2MQTT + Mosquitto + ser2net)
+
+- Zigbee device network for Home Assistant, using a SONOFF ZBDongle-P
+  coordinator. Three services across both nodes; see [zigbee.md](zigbee.md).
+- **ser2net** (Pi 3, standalone container) bridges the dongle's USB serial port
+  to TCP — standalone because Swarm cannot grant host devices; see
+  [ser2net/README.md](ser2net/README.md).
+- **Mosquitto** (Pi 3, Swarm service) is the MQTT broker, port 1883.
+- **Zigbee2MQTT** (N100, Swarm service) drives the coordinator and publishes to
+  Mosquitto; web UI proxied by Traefik at `zigbee2mqtt.${DOMAIN_SUFFIX}`.
+- Prod-only (one physical dongle): all three are off in preprod.
+
 ## Network
 
-Services use macvlan networking to get direct IP addresses on the local network. The network infrastructure is managed separately from application services.
-
-A systemd service (`homelab-shim.service`) creates a network shim that enables the host to communicate with containers on macvlan networks. This shim is essential because Docker's macvlan isolation normally prevents host-to-container communication.
+Services communicate over a single external Docker Swarm overlay network,
+`homelab-shared`, created with `make network-up`. Traefik is the only ingress —
+services are reached by domain name through it rather than by direct host ports
+(the exceptions publish a port because their protocol needs it: Pi-hole DNS on
+53, Mosquitto MQTT on 1883, ser2net's TCP bridge). The network must exist
+before any services are deployed.
 
 ### Network Management
 
 ```bash
-# Install systemd network shim service (one-time setup)
-make install-shim
-
-# Start network infrastructure (required before services)
+# Create the shared overlay network (one-time, before deploying services)
 make network-up
 
-# Stop network infrastructure
+# Remove the shared overlay network
 make network-down
 ```
 
-See [network.md](network.md) for detailed network architecture and IP allocation.
+See [network.md](network.md) for detailed network architecture and the
+service-discovery caveats.
 
 ### SSH Access
 See [ssh.md](ssh.md) for information about remote access to homelab nodes.
@@ -132,10 +148,9 @@ For complete homelab node setup:
 make provision-node
 ```
 
-This command runs:
-1. User and group creation
-2. Systemd shim installation  
-3. User verification
+This command joins the node to the Docker Swarm (`make swarm-join`) and then
+prints the `make node-label` command to run from a manager node to apply the
+node's hardware/class labels.
 
 ### Docker Swarm Setup
 
@@ -154,10 +169,7 @@ See [hardware.md](hardware.md) for detailed hardware specifications, installatio
 ## Usage
 
 ```bash
-# One-time setup: Install systemd network shim
-make install-shim
-
-# Start network infrastructure first
+# One-time setup: create the shared overlay network
 make network-up
 
 # Start all services for preprod environment (default)
@@ -179,16 +191,23 @@ make network-down
 ### Service Management
 
 ```bash
-# Start specific service
-make service-up SERVICE=jellyfin
+# Scale a specific service to 0 replicas (stop it) in an environment
+make service-down ENV=prod SERVICE=zigbee2mqtt
 
-# Start specific service in production
-make service-up ENV=prod SERVICE=jellyfin
+# Remove a specific service from the stack entirely
+make service-remove ENV=prod SERVICE=zigbee2mqtt
 
-# Stop specific service
-make service-down SERVICE=jellyfin
+# List services and standalone containers for an environment
+make list-services ENV=prod
 ```
+
+Individual services are otherwise started and stopped as part of the whole
+environment via `make env-up` / `make env-down`. The standalone containers
+(Jellyfin, ser2net) also have their own `jellyfin-up`/`-down` and
+`ser2net-up`/`-down` targets.
 
 ## Resilience
 
-All services use the `unless-stopped` restart policy to automatically recover from crashes.
+Swarm services use the `on-failure` restart policy; the standalone containers
+(Jellyfin, ser2net) use `unless-stopped`. Both recover automatically from
+crashes.
