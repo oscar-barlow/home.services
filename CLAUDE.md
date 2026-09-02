@@ -44,8 +44,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Repository Structure
 - `docker-swarm-stack.yml` - Main service stack configuration
 - `env/` - Environment-specific configuration files (.env.prod, .env.preprod)
-- Service configurations are organized by component (nginx, pihole, jellyfin)
+- Service configurations are organized by component (e.g. `pihole/`, `jellyfin/`,
+  `ser2net/`, `mosquitto/`, `zigbee2mqtt/`)
 - Container persistence volumes are mapped to local directories
+
+## Branching and Pull Requests
+- Branch off `main`; PRs merge back into `main`.
+- Name feature branches with an area prefix followed by a short kebab-case
+  description. Service work uses the `services/` prefix — e.g.
+  `services/zigbee-mqtt-setup`, `services/upgrade-pihole`,
+  `services/give-immich-server-more-resources`.
+- PR titles are written in imperative sentence case (e.g. "Add Home Assistant
+  service to stack", "Upgrade Trek from v3.3.0 to v4.0.0").
 
 ## Allowed External Resources
 - https://github.com/pi-hole/docker-pi-hole - Pi-hole Docker repository
