@@ -40,6 +40,13 @@ There is one physical dongle, so the Zigbee stack runs only in prod:
 `SER2NET_ENABLED=true` and `MOSQUITTO_REPLICAS`/`ZIGBEE2MQTT_REPLICAS=1` in
 `env/.env.prod`; all off (`false`/`0`) in `env/.env.preprod`.
 
+Mosquitto's published port must still differ between environments even though
+preprod is scaled to 0: a Swarm service that publishes a port in ingress mode
+reserves that port swarm-wide regardless of replica count, so a preprod
+`mosquitto` publishing 1883 would block prod from binding it. Hence
+`MOSQUITTO_MQTT_PORT=1883` in prod and `11883` in preprod — the same per-env
+port split Pi-hole and Traefik already use.
+
 ## Zigbee2MQTT config is seeded, then owned by Z2M
 
 Like Home Assistant, Zigbee2MQTT rewrites its own `configuration.yaml` (frontend
