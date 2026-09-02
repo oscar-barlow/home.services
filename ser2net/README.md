@@ -28,11 +28,15 @@ without hard-coding the Pi's IP. The TCP port is also published to the host
 - `ser2net.yaml` — maps the in-container device `/dev/ttyUSB0` (115200 8N1) to
   TCP port 3333. `local` keeps ser2net from toggling the modem-control lines,
   which would otherwise reset the CC2652P on connect.
-- The **host** device path is set per environment via `SER2NET_DEVICE`
-  (default `/dev/ttyUSB0`; the ZBDongle-P enumerates as `ttyUSB0` via its
-  CP2102N USB-serial chip — use `ttyACM0` only if it comes up as a CDC-ACM
-  device). It is mapped to the fixed in-container path `/dev/ttyUSB0` that
-  `ser2net.yaml` references.
+- The **host** device path is set per environment via `SER2NET_DEVICE`, mapped
+  to the fixed in-container path `/dev/ttyUSB0` that `ser2net.yaml` references.
+  Prod uses the dongle's stable `/dev/serial/by-id/usb-ITead_Sonoff_...-if00-port0`
+  symlink rather than the bare `/dev/ttyUSB0`: the `ttyUSBn` name is assigned by
+  USB enumeration order, so a second serial device or a reboot race could shift
+  the dongle to `ttyUSB1`. The by-id path is keyed to the dongle's serial and
+  is stable. Docker resolves the symlink when mapping the device, so it still
+  lands on `/dev/ttyUSB0` inside the container. Find the path with
+  `ls -l /dev/serial/by-id/` (the ZBDongle-P is a CP210x, vendor `10c4`).
 
 The whole Zigbee stack is prod-only because there is a single physical dongle.
 `SER2NET_ENABLED` gates the standalone container (`true` in prod, `false` in
