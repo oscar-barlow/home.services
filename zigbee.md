@@ -20,19 +20,30 @@ ZBDongle-P (USB)                Pi 3                         N100
   Config shipped as a Swarm `config` from `mosquitto/mosquitto.conf`; retained
   state persists in `/srv/data/${ENV_NAME}/mosquitto/data`.
 - **Zigbee2MQTT** (N100, Swarm service) — talks to the coordinator over
-  `tcp://ser2net-prod:3333` and publishes to `mqtt://homelab-prod_mosquitto:1883`.
-  Web UI proxied by Traefik at `zigbee2mqtt.${DOMAIN_SUFFIX}` (port 8080). Data
-  in `/srv/data/${ENV_NAME}/zigbee2mqtt/data`.
+  `tcp://192.168.1.204:3333` (ser2net's host-published port on the Pi) and
+  publishes to `mqtt://homelab-prod_mosquitto:1883`. Web UI proxied by Traefik
+  at `zigbee2mqtt.${DOMAIN_SUFFIX}` (port 8080). Data in
+  `/srv/data/${ENV_NAME}/zigbee2mqtt/data`.
 
 Zigbee2MQTT is placed on the N100 because it is a Node.js app (70–150 MB); the
 Pi 3 has only ~159 MB free and runs Traefik + Pi-hole. Mosquitto and ser2net
 are negligible and sit on the Pi with the dongle.
 
-Inter-service addressing uses overlay DNS rather than the Pi's IP: the
-fully-qualified Swarm name for Mosquitto (`homelab-${ENV_NAME}_mosquitto`, per
-[network.md](network.md)) and the standalone container's network alias for
-ser2net (`ser2net-${ENV_NAME}`, the same mechanism Traefik uses to reach the
-standalone Jellyfin).
+Inter-service addressing differs by service type, and the difference is the
+point:
+
+- **Mosquitto** is reached by its Swarm overlay DNS name
+  (`homelab-${ENV_NAME}_mosquitto`, per [network.md](network.md)). It is a real
+  Swarm service, so that name is managed by Swarm service discovery and is
+  stable across restarts.
+- **ser2net** is reached over the LAN via the Pi's host-published port
+  (`tcp://192.168.1.204:3333`), **not** the overlay. It is a standalone
+  (non-Swarm) container, and such a container's overlay endpoint is *not*
+  managed by Swarm discovery: its IP changes on every recreate and stale
+  gossip entries linger, so a service resolving an alias for it intermittently
+  hits a dead IP (`ECONNREFUSED`). The host-published port has none of that
+  fragility. `192.168.1.204` is the Pi's fixed address — the same anchor
+  Pi-hole and Traefik already rely on. See [ser2net/README.md](ser2net/README.md).
 
 ## Prod-only
 

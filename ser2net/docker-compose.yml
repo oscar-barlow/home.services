@@ -12,11 +12,3 @@ services:
     ports:
       - "${SER2NET_TCP_PORT}:3333"
     mem_limit: 32m
-    networks:
-      homelab-shared:
-        aliases:
-          - ser2net-${ENV_NAME}
-
-networks:
-  homelab-shared:
-    external: true

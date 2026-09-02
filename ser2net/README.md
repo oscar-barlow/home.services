@@ -12,11 +12,22 @@ dongle at `/dev/ttyUSB0`. Docker Swarm services cannot access host devices —
 silently dropped — so the container is run standalone with `docker compose`
 and a `devices:` mapping, on the node the dongle is attached to.
 
-It attaches to the external `homelab-shared` overlay under the alias
-`ser2net-${ENV_NAME}`, so Zigbee2MQTT reaches it at `tcp://ser2net-${ENV_NAME}:3333`
-without hard-coding the Pi's IP. The TCP port is also published to the host
-(`${SER2NET_TCP_PORT}:3333`) so it can be reached directly on the LAN — e.g.
-`nc -z <pi-ip> 3333` from the N100 to confirm the bridge is up.
+## How Zigbee2MQTT reaches it
+
+ser2net is reached over the **LAN via its host-published port**, not the Swarm
+overlay: Zigbee2MQTT connects to `tcp://192.168.1.204:3333` (the Pi's fixed
+address, the same anchor Pi-hole/Traefik use). The container publishes
+`${SER2NET_TCP_PORT}:3333` on the host and is otherwise on the default bridge —
+it is deliberately **not** attached to `homelab-shared`.
+
+The overlay was the obvious first choice (an alias like `ser2net-prod` avoids a
+hard-coded IP), and it was tried, but it is the wrong tool here: a non-Swarm
+container's overlay endpoint is not managed by Swarm service discovery, so its
+IP churns on every recreate and stale gossip entries linger — a swarm service
+resolving the alias intermittently gets a dead IP and sees `ECONNREFUSED`. The
+host-published port has none of that fragility and is the path the `nc -z
+<pi-ip> 3333` smoke test already exercises. (Mosquitto, a real Swarm service,
+keeps its overlay DNS name — that discovery *is* swarm-managed and stable.)
 
 ## Configuration
 
