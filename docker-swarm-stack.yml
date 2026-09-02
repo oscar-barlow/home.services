@@ -143,6 +143,7 @@ services:
     image: koenkk/zigbee2mqtt:${ZIGBEE2MQTT_VERSION}
     environment:
       TZ: 'Europe/London'
+      Z2M_WATCHDOG: 'default'
     volumes:
       - /srv/data/${ENV_NAME}/zigbee2mqtt/data:/app/data
     networks:

@@ -76,6 +76,17 @@ The seed pins `advanced.channel: 25` to stay clear of 2.4 GHz WiFi (there is a
 TP-Link repeater in the house). **Do not change the channel after devices are
 paired** — it forces re-pairing everything.
 
+## Resilience
+
+Zigbee2MQTT sets `Z2M_WATCHDOG=default` (in `docker-swarm-stack.yml`). Without
+it, Z2M *exits* on a soft failure such as the coordinator connection dropping
+(e.g. ser2net restarting, or Z2M starting before ser2net is ready after a
+reboot), and relies on Swarm to recreate the whole task. The watchdog instead
+retries the adapter connection internally on a back-off, so a brief ser2net
+blip no longer takes the process down. Valid values are `default` or a
+comma-separated list of retry delays in minutes; an invalid value stops Z2M
+from starting.
+
 ## Setup sequence
 
 Run cluster commands yourself; this repo only ships config.
