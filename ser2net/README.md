@@ -20,14 +20,16 @@ address, the same anchor Pi-hole/Traefik use). The container publishes
 `${SER2NET_TCP_PORT}:3333` on the host and is otherwise on the default bridge —
 it is deliberately **not** attached to `homelab-shared`.
 
-The overlay was the obvious first choice (an alias like `ser2net-prod` avoids a
-hard-coded IP), and it was tried, but it is the wrong tool here: a non-Swarm
-container's overlay endpoint is not managed by Swarm service discovery, so its
-IP churns on every recreate and stale gossip entries linger — a swarm service
-resolving the alias intermittently gets a dead IP and sees `ECONNREFUSED`. The
-host-published port has none of that fragility and is the path the `nc -z
-<pi-ip> 3333` smoke test already exercises. (Mosquitto, a real Swarm service,
-keeps its overlay DNS name — that discovery *is* swarm-managed and stable.)
+This is a simplicity choice, not a forced one: the overlay alias `ser2net-prod`
+would also work (ser2net binds all interfaces, so it listens on the overlay IP
+too). But ser2net is inherently host-bound — it exists to bridge a device on
+one specific node — so reaching it via that host's stable address and published
+port is the natural fit and has the fewest moving parts: no non-Swarm container
+enrolled in Swarm overlay DNS, no dependence on gossip propagating a standalone
+endpoint that gets a fresh IP on every recreate. `192.168.1.204` is the Pi's
+fixed address, the same anchor Pi-hole and Traefik rely on. (Mosquitto, by
+contrast, is a real Swarm service, so it keeps its swarm-managed overlay DNS
+name.)
 
 ## Configuration
 

@@ -37,13 +37,13 @@ point:
   Swarm service, so that name is managed by Swarm service discovery and is
   stable across restarts.
 - **ser2net** is reached over the LAN via the Pi's host-published port
-  (`tcp://192.168.1.204:3333`), **not** the overlay. It is a standalone
-  (non-Swarm) container, and such a container's overlay endpoint is *not*
-  managed by Swarm discovery: its IP changes on every recreate and stale
-  gossip entries linger, so a service resolving an alias for it intermittently
-  hits a dead IP (`ECONNREFUSED`). The host-published port has none of that
-  fragility. `192.168.1.204` is the Pi's fixed address — the same anchor
-  Pi-hole and Traefik already rely on. See [ser2net/README.md](ser2net/README.md).
+  (`tcp://192.168.1.204:3333`), **not** the overlay. The overlay alias would
+  also work (ser2net binds all interfaces), but ser2net is inherently
+  host-bound — it bridges a device on one specific node — so the host's stable
+  address plus published port is the natural fit and the fewest moving parts:
+  no non-Swarm container enrolled in Swarm overlay DNS. `192.168.1.204` is the
+  Pi's fixed address, the same anchor Pi-hole and Traefik rely on. See
+  [ser2net/README.md](ser2net/README.md).
 
 ## Prod-only
 
