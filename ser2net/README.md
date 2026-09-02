@@ -36,9 +36,15 @@ keeps its overlay DNS name — that discovery *is* swarm-managed and stable.)
   auditable). Alpine over Debian was settled empirically on the Pi: the Alpine
   image is ~9 MB vs ~139 MB for a `debian:bookworm-slim` equivalent, and the
   `ser2net` apk builds cleanly on the Pi's architecture.
-- `ser2net.yaml` — maps the in-container device `/dev/ttyUSB0` (115200 8N1) to
-  TCP port 3333. `local` keeps ser2net from toggling the modem-control lines,
-  which would otherwise reset the CC2652P on connect.
+- `ser2net.conf` — maps the in-container device `/dev/ttyUSB0` (115200 8N1) to
+  TCP port 3333 in ser2net's **legacy line format**
+  (`port:raw:0:device:settings`). `LOCAL` keeps ser2net from toggling the
+  modem-control lines, which would otherwise reset the CC2652P on connect.
+  Note: this must be the legacy format, **not** the newer `%YAML` config —
+  Alpine's `ser2net` package is built without YAML support, and feeding it a
+  YAML file makes it parse every line with the legacy parser and fail with
+  `No state given on line N`, coming up with zero ports (a running container
+  that listens on nothing).
 - The **host** device path is set per environment via `SER2NET_DEVICE`, mapped
   to the fixed in-container path `/dev/ttyUSB0` that `ser2net.yaml` references.
   Prod uses the dongle's stable `/dev/serial/by-id/usb-ITead_Sonoff_...-if00-port0`
