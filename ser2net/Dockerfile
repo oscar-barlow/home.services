@@ -1,8 +1,6 @@
-FROM debian:bookworm-slim
+FROM alpine:3.20
 
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ser2net \
- && rm -rf /var/lib/apt/lists/*
+RUN apk add --no-cache ser2net
 
 ENTRYPOINT ["ser2net"]
 CMD ["-n", "-c", "/etc/ser2net/ser2net.yaml"]

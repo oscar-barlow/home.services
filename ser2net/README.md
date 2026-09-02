@@ -20,8 +20,11 @@ without hard-coding the Pi's IP. The TCP port is also published to the host
 
 ## Configuration
 
-- `Dockerfile` — installs `ser2net` from Debian (no reliable upstream image
-  exists for it; building from the distro package keeps it auditable).
+- `Dockerfile` — installs `ser2net` from Alpine's package repo (no reliable
+  upstream image exists for it; building from the distro package keeps it
+  auditable). Alpine over Debian was settled empirically on the Pi: the Alpine
+  image is ~9 MB vs ~139 MB for a `debian:bookworm-slim` equivalent, and the
+  `ser2net` apk builds cleanly on the Pi's architecture.
 - `ser2net.yaml` — maps the in-container device `/dev/ttyUSB0` (115200 8N1) to
   TCP port 3333. `local` keeps ser2net from toggling the modem-control lines,
   which would otherwise reset the CC2652P on connect.
