@@ -278,6 +278,10 @@ jellyfin-down:
 ser2net-up:
 	@if [ "$$(grep -E '^SER2NET_ENABLED=' env/.env.$(ENV) | cut -d= -f2)" != "true" ]; then \
 		echo "⏭️  ser2net disabled for $(ENV) (SER2NET_ENABLED != true) — skipping"; \
+	elif [ ! -e "$$(grep -E '^SER2NET_DEVICE=' env/.env.$(ENV) | cut -d= -f2)" ]; then \
+		echo "⏭️  ser2net device not found on this node — the dongle is on the Pi, but"; \
+		echo "    ser2net is a standalone (non-Swarm) container that starts on whichever"; \
+		echo "    node runs 'make'. Run 'make ser2net-up ENV=$(ENV)' on the Pi. Skipping."; \
 	else \
 		echo "🚀 Deploying standalone ser2net Zigbee serial bridge for environment: $(ENV)"; \
 		docker compose --env-file env/.env.$(ENV) -p ser2net-$(ENV) -f ser2net/docker-compose.yml up -d --build; \

@@ -72,8 +72,11 @@ Run cluster commands yourself; this repo only ships config.
 1. Plug the dongle into the Pi via the USB extension cable.
 2. Confirm the serial device on the Pi: `ls /dev/ttyUSB*` (or `ls /dev/ttyACM*`).
    If it is not `ttyUSB0`, set `SER2NET_DEVICE` in `env/.env.prod`.
-3. `make env-up ENV=prod` brings up ser2net, Mosquitto and Zigbee2MQTT together
-   (or run `make ser2net-up ENV=prod` on its own).
+3. Deploy. Mosquitto and Zigbee2MQTT are Swarm services and come up with
+   `make env-up ENV=prod` from wherever you normally deploy (the N100).
+   ser2net is a standalone container that must run **on the Pi** (the node the
+   dongle is attached to) — `env-up` on the N100 skips it with a message, so run
+   `make ser2net-up ENV=prod` on the Pi. See [ser2net/README.md](ser2net/README.md).
 4. Confirm the bridge from the N100: `nc -z <pi-ip> 3333`.
 5. Confirm MQTT from the N100: `mosquitto_sub -h <pi-ip> -t '#' -v` while
    `mosquitto_pub -h <pi-ip> -t test -m hello` from another shell.

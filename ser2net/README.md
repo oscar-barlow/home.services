@@ -43,14 +43,26 @@ The whole Zigbee stack is prod-only because there is a single physical dongle.
 preprod); Mosquitto and Zigbee2MQTT are Swarm services scaled to 0 replicas in
 preprod for the same reason.
 
+## Must be deployed on the node with the dongle
+
+Unlike the Swarm services, ser2net is a plain `docker compose` container, which
+is **not** cluster-aware: it starts on whichever node runs `make`, not on a
+node Swarm picks. The dongle lives on the Pi, so ser2net must be brought up
+**on the Pi**. Deploys are normally driven from the N100, where the serial
+device does not exist — so `make env-up` there skips ser2net (with a message)
+rather than failing, and you run `make ser2net-up ENV=prod` on the Pi once.
+
+ser2net is set-and-forget: it only needs redeploying if its image or config
+changes, or the Pi reboots (it has `restart: unless-stopped`, so a reboot
+brings it back on its own).
+
 ## Commands
 
 ```bash
-# Started/stopped automatically with the environment
-make env-up ENV=prod
-make env-down ENV=prod
-
-# Or manage ser2net on its own
+# On the Pi (the node with the dongle):
 make ser2net-up ENV=prod
 make ser2net-down ENV=prod
 ```
+
+`make env-up`/`env-down` also invoke these targets, but they only do the real
+work on the node where the dongle is present; on any other node they skip.
