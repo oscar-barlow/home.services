@@ -89,6 +89,17 @@ make env-up ENV=prod
 make service-down SERVICE=jellyfin ENV=prod
 ```
 
+## Why Docker Swarm, when every service is pinned
+
+Swarm's scheduler is unused — every service has a `node.labels.hardware`
+constraint, so bin-packing and placement-on-failure never fire. Swarm is kept
+for what it still earns across the two nodes: the `homelab-shared` overlay that
+lets the single Pi-hosted Traefik reach N100 backends by name, Swarm secrets,
+and one-shot multi-node `stack deploy`. Device-bound pieces (Jellyfin, ser2net)
+already live outside Swarm; if that hybrid keeps growing, a declarative
+multi-host successor (NixOS + Colmena) is a more likely direction than a
+plain-compose rewrite.
+
 ## Future Improvements
 
 **Split `homelab-shared` into per-environment overlay networks** (`homelab-prod` on `10.10.1.0/24`, `homelab-preprod` on `10.10.2.0/24`), rather than one shared network with two IP pools. This would fix both issues documented above at the source: real address-space separation instead of IPAM just overflowing into the second pool once the first fills, and no more short-name DNS collision between environments, since Swarm's DNS aliasing is scoped per-network — two networks means two isolated DNS namespaces. Traefik would need to join both networks (it already routes both environments from a single instance today), while every other service would only ever attach to its own environment's network. Bigger lift than it sounds: touches `Makefile`'s `network-up`/`network-down` targets, every service's `networks:` list in `docker-swarm-stack.yml`, and Traefik's `--providers.swarm.network` config — not undertaken as part of the Immich work, but worth doing before this repo accumulates more services that might someday need real inter-container DNS (Immich is the first, and had to work around the current setup with fully-qualified hostnames instead).

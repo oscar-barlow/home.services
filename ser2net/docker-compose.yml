@@ -7,8 +7,6 @@ services:
     restart: unless-stopped
     devices:
       - ${SER2NET_DEVICE}:/dev/ttyUSB0
-    volumes:
-      - ./ser2net.conf:/etc/ser2net/ser2net.conf:ro
     ports:
       - "${SER2NET_TCP_PORT}:3333"
     mem_limit: 32m
