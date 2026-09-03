@@ -1,4 +1,4 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node jellyfin-up jellyfin-down list-services lvm-extend lvm-init network-up network-down node-label provision-node service-down service-remove swarm-init swarm-join swarm-deploy swarm-down
+.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node jellyfin-up jellyfin-down list-services lvm-extend lvm-init network-up network-down node-label provision-node ser2net-up ser2net-down service-down service-remove swarm-init swarm-join
 
 # Default environment if not specified
 ENV ?= preprod
@@ -23,12 +23,12 @@ help:
 	@echo "  network-down   - Remove shared Docker overlay network"
 	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
+	@echo "  ser2net-up     - Start standalone ser2net Zigbee serial bridge for ENV (only when SER2NET_ENABLED=true)"
+	@echo "  ser2net-down   - Stop standalone ser2net for ENV (default: preprod)"
 	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
 	@echo "  service-remove - Remove specific SERVICE from ENV stack (requires SERVICE=name)"
 	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
 	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
-	@echo "  swarm-deploy   - Deploy stack to Docker Swarm for ENV (default: preprod)"
-	@echo "  swarm-down     - Remove stack from Docker Swarm for ENV (default: preprod)"
 	@echo ""
 	@echo "Examples:"
 	@echo "  make env-up ENV=prod"
@@ -45,7 +45,6 @@ help:
 	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
 	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
 	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
-	@echo "  make swarm-deploy ENV=prod"
 
 backup-install:
 	@echo "🚀 Installing backup system..."
@@ -74,6 +73,7 @@ backup-install:
 env-down:
 	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
 	@$(MAKE) jellyfin-down ENV=$(ENV)
+	@$(MAKE) ser2net-down ENV=$(ENV)
 	@echo "🔍 Checking if stack exists..."
 	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
 		echo "📦 Removing homelab-$(ENV) stack..."; \
@@ -97,6 +97,7 @@ env-up:
 	docker stack deploy --detach=true --compose-file docker-swarm-stack.$(ENV).yml --prune homelab-$(ENV)
 	@echo "✅ Stack deployment complete!"
 	@$(MAKE) jellyfin-up ENV=$(ENV)
+	@$(MAKE) ser2net-up ENV=$(ENV)
 	@echo "📋 Current services:"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
@@ -274,11 +275,30 @@ jellyfin-down:
 	@docker service update --force $(TRAEFIK_SERVICE) >/dev/null 2>&1 || true
 	@echo "✅ Jellyfin ($(ENV)) stopped"
 
+ser2net-up:
+	@if [ "$$(grep -E '^SER2NET_ENABLED=' env/.env.$(ENV) | cut -d= -f2)" != "true" ]; then \
+		echo "⏭️  ser2net disabled for $(ENV) (SER2NET_ENABLED != true) — skipping"; \
+	elif [ ! -e "$$(grep -E '^SER2NET_DEVICE=' env/.env.$(ENV) | cut -d= -f2)" ]; then \
+		echo "⏭️  ser2net device not found on this node — the dongle is on the Pi, but"; \
+		echo "    ser2net is a standalone (non-Swarm) container that starts on whichever"; \
+		echo "    node runs 'make'. Run 'make ser2net-up ENV=$(ENV)' on the Pi. Skipping."; \
+	else \
+		echo "🚀 Deploying standalone ser2net Zigbee serial bridge for environment: $(ENV)"; \
+		docker compose --env-file env/.env.$(ENV) -p ser2net-$(ENV) -f ser2net/docker-compose.yml up -d --build; \
+		echo "✅ ser2net ($(ENV)) is up"; \
+	fi
+
+ser2net-down:
+	@echo "🛑 Stopping standalone ser2net for environment: $(ENV)"
+	@docker compose --env-file env/.env.$(ENV) -p ser2net-$(ENV) -f ser2net/docker-compose.yml down 2>/dev/null || true
+	@echo "✅ ser2net ($(ENV)) stopped"
+
 list-services:
 	@echo "📋 Services for environment: $(ENV)"
 	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 	@echo "📋 Standalone containers for environment: $(ENV)"
 	docker ps --filter label=com.docker.compose.project=jellyfin-$(ENV) --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
+	docker ps --filter label=com.docker.compose.project=ser2net-$(ENV) --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
 
 network-up:
 	@echo "🚀 Creating Docker network"

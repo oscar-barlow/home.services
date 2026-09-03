@@ -41,12 +41,12 @@ For exporting storage volumes via NFS:
 
 ```bash
 # Export storage volume via NFS
-make export-storage VOL=1 IP=192.168.1.100
+make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100
 ```
 
 This command:
-- Validates required VOL and IP parameters
-- Checks if mount point exists at /mnt/Data-$(VOL)
+- Validates required LOCAL_PATH and IP parameters
+- Checks that LOCAL_PATH exists
 - Adds NFS export to /etc/exports (idempotent)
 - Enables and starts NFS kernel server
 - Shows current exports for verification
@@ -57,11 +57,11 @@ For importing (mounting) storage volumes via NFS:
 
 ```bash
 # Import storage volume via NFS
-make import-storage VOL=1 IP=192.168.1.100
+make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2
 ```
 
 This command:
-- Validates required VOL and IP parameters
+- Validates required IP, REMOTE_PATH and LOCAL_PATH parameters
 - Checks if volume is already mounted (idempotent)
 - Creates mount directory if needed
 - Mounts NFS volume from remote server
