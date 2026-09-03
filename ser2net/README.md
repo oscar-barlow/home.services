@@ -46,9 +46,12 @@ name.)
   Alpine's `ser2net` package is built without YAML support, and feeding it a
   YAML file makes it parse every line with the legacy parser and fail with
   `No state given on line N`, coming up with zero ports (a running container
-  that listens on nothing).
+  that listens on nothing). `ser2net.conf` is **baked into the image** at build
+  time (`COPY` in the Dockerfile), not bind-mounted — see the deployment section
+  below for why. A config change therefore needs a rebuild (`make ser2net-up`
+  runs `--build`), not just a container restart.
 - The **host** device path is set per environment via `SER2NET_DEVICE`, mapped
-  to the fixed in-container path `/dev/ttyUSB0` that `ser2net.yaml` references.
+  to the fixed in-container path `/dev/ttyUSB0` that `ser2net.conf` references.
   Prod uses the dongle's stable `/dev/serial/by-id/usb-ITead_Sonoff_...-if00-port0`
   symlink rather than the bare `/dev/ttyUSB0`: the `ttyUSBn` name is assigned by
   USB enumeration order, so a second serial device or a reboot race could shift
@@ -62,26 +65,56 @@ The whole Zigbee stack is prod-only because there is a single physical dongle.
 preprod); Mosquitto and Zigbee2MQTT are Swarm services scaled to 0 replicas in
 preprod for the same reason.
 
-## Must be deployed on the node with the dongle
+## Deployed remotely, from the same node as everything else
 
-Unlike the Swarm services, ser2net is a plain `docker compose` container, which
-is **not** cluster-aware: it starts on whichever node runs `make`, not on a
-node Swarm picks. The dongle lives on the Pi, so ser2net must be brought up
-**on the Pi**. Deploys are normally driven from the N100, where the serial
-device does not exist — so `make env-up` there skips ser2net (with a message)
-rather than failing, and you run `make ser2net-up ENV=prod` on the Pi once.
+ser2net is a plain `docker compose` container, not a Swarm service, so it
+targets whichever Docker daemon `make` talks to — not a node Swarm picks. The
+dongle is on the Pi, but deploys are driven from the N100. Rather than making
+you SSH into the Pi for this one container, `make ser2net-up`/`-down` run
+`docker --context <ctx> compose …`, driving the Pi's Docker daemon over SSH.
+The context name comes from `SER2NET_DOCKER_CONTEXT` in the env file (`pi` in
+prod); it defaults to `default` (the local daemon) if unset.
+
+Two things make this clean over SSH:
+
+- **The build context is uploaded** to the remote daemon, so the image builds
+  on the Pi (native arm, ~3 s) from files sent over SSH.
+- **The config is baked into the image** (`COPY ser2net.conf …`) rather than
+  bind-mounted. A remote context resolves bind-mount *source* paths on the
+  **remote** filesystem, so `./ser2net.conf` would make the Pi look for a file
+  that only exists on the N100 and fail. Baking it in sidesteps that entirely —
+  nothing needs to pre-exist on the Pi. The `devices:` mapping and published
+  port already resolve correctly on the Pi, because that is where the daemon
+  runs.
+
+### One-time setup (on the deploy machine, e.g. the N100)
+
+Create an SSH key that reaches a Pi user in the `docker` group, then a Docker
+context pointing at the Pi:
+
+```bash
+docker context create pi --docker "host=ssh://<user>@192.168.1.204"
+docker --context pi ps   # verify it reaches the Pi's daemon
+```
+
+Prefer a dedicated deploy key over your login key: an SSH key that can reach a
+`docker`-group user is root-equivalent on that host. The trust boundary already
+exists — the N100 orchestrates the Pi through Swarm — so this doesn't widen it,
+but a scoped key keeps it tidy.
 
 ser2net is set-and-forget: it only needs redeploying if its image or config
-changes, or the Pi reboots (it has `restart: unless-stopped`, so a reboot
-brings it back on its own).
+changes, or the Pi reboots (`restart: unless-stopped` brings it back on its
+own).
 
 ## Commands
 
 ```bash
-# On the Pi (the node with the dongle):
+# From the deploy machine (N100), targeting the Pi via the 'pi' context:
 make ser2net-up ENV=prod
 make ser2net-down ENV=prod
 ```
 
-`make env-up`/`env-down` also invoke these targets, but they only do the real
-work on the node where the dongle is present; on any other node they skip.
+`make env-up`/`env-down ENV=prod` invoke these too, so a single `make env-up
+ENV=prod` from the N100 now deploys the whole stack — Swarm services via Swarm,
+ser2net onto the Pi via the context. If the `pi` context is missing or the Pi
+is unreachable, the ser2net step fails loudly rather than skipping.
