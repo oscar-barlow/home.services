@@ -3,6 +3,12 @@ services:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     container_name: jellyfin-${ENV_NAME}
     restart: unless-stopped
+    labels:
+      - "homepage.instance.${ENV_NAME}.group=Media"
+      - "homepage.instance.${ENV_NAME}.name=Jellyfin"
+      - "homepage.instance.${ENV_NAME}.icon=jellyfin.png"
+      - "homepage.instance.${ENV_NAME}.href=https://jellyfin.${DOMAIN_SUFFIX}"
+      - "homepage.instance.${ENV_NAME}.description=Films, TV and music"
     devices:
       - /dev/dri:/dev/dri
     group_add:

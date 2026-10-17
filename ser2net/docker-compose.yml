@@ -5,6 +5,10 @@ services:
     image: homelab/ser2net:local
     container_name: ser2net-${ENV_NAME}
     restart: unless-stopped
+    labels:
+      - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+      - "homepage.instance.${ENV_NAME}.name=ser2net"
+      - "homepage.instance.${ENV_NAME}.description=Zigbee serial bridge"
     devices:
       - ${SER2NET_DEVICE}:/dev/ttyUSB0
     volumes:
