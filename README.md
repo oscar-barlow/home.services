@@ -4,6 +4,13 @@ A collection of containerized services for a home network environment.
 
 ## Services
 
+### Homepage
+- Home dashboard at `homepage.${DOMAIN_SUFFIX}`, served over HTTPS by Traefik
+- Runs on the N100 as a Swarm service, with separate prod and preprod configuration
+- Discovers labeled Swarm services, Jellyfin, and ser2net through Docker socket proxies
+- Configuration persisted in `/srv/data/${ENV_NAME}/homepage/config`; see
+  [homepage/README.md](homepage/README.md) for setup and customization
+
 ### Traefik
 - Reverse proxy and ingress for all HTTP services, on ports 80 (HTTP, redirected
   to HTTPS) and 443 (HTTPS)

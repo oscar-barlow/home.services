@@ -1,0 +1,10 @@
+swarm:
+  host: homelab-{{HOMEPAGE_VAR_ENV_NAME}}_homepage-swarm-proxy
+  port: 2375
+  swarm: true
+pi:
+  host: homelab-{{HOMEPAGE_VAR_ENV_NAME}}_homepage-swarm-proxy
+  port: 2375
+n100:
+  host: homelab-{{HOMEPAGE_VAR_ENV_NAME}}_homepage-container-proxy
+  port: 2375

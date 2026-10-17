@@ -1,6 +1,9 @@
 networks:
   homelab-shared:
     external: true
+  homepage-discovery:
+    driver: overlay
+    internal: true
 
 secrets:
   pihole_web_password:
@@ -30,8 +33,106 @@ configs:
     file: ./pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns-v2.conf
   mosquitto_config:
     file: ./mosquitto/mosquitto.conf
+  homepage_docker_v1:
+    file: ./homepage/docker.yaml
+  homepage_settings_v1:
+    file: ./homepage/settings.yaml
+  homepage_services_v1:
+    file: ./homepage/services.yaml
 
 services:
+  homepage:
+    image: ghcr.io/gethomepage/homepage:${HOMEPAGE_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      HOMEPAGE_ALLOWED_HOSTS: 'homepage.${DOMAIN_SUFFIX}'
+      HOMEPAGE_VAR_DOMAIN_SUFFIX: '${DOMAIN_SUFFIX}'
+      HOMEPAGE_VAR_ENV_NAME: '${ENV_NAME}'
+    volumes:
+      - /srv/data/${ENV_NAME}/homepage/config:/app/config
+    configs:
+      - source: homepage_docker_v1
+        target: /app/config/docker.yaml
+        mode: 0444
+      - source: homepage_settings_v1
+        target: /app/config/settings.yaml
+        mode: 0444
+      - source: homepage_services_v1
+        target: /app/config/services.yaml
+        mode: 0444
+    networks:
+      - homelab-shared
+      - homepage-discovery
+    deploy:
+      replicas: ${HOMEPAGE_REPLICAS}
+      labels:
+        - "traefik.enable=true"
+        - "traefik.http.routers.homepage-${ENV_NAME}.rule=Host(`homepage.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.homepage-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.homepage-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.homepage-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.homepage-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
+        - "traefik.http.services.homepage-${ENV_NAME}.loadbalancer.server.port=3000"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+
+  homepage-swarm-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:${HOMEPAGE_SOCKET_PROXY_VERSION}
+    environment:
+      CONTAINERS: '1'
+      SERVICES: '1'
+      TASKS: '1'
+      POST: '0'
+      EVENTS: '0'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homepage-discovery
+    deploy:
+      replicas: ${HOMEPAGE_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.role == manager
+          - node.labels.hardware == rpi-3
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+
+  homepage-container-proxy:
+    image: ghcr.io/tecnativa/docker-socket-proxy:${HOMEPAGE_SOCKET_PROXY_VERSION}
+    environment:
+      CONTAINERS: '1'
+      POST: '0'
+      EVENTS: '0'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    networks:
+      - homepage-discovery
+    deploy:
+      replicas: ${HOMEPAGE_REPLICAS}
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 64M
+        reservations:
+          memory: 16M
+
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
     environment:
@@ -67,6 +168,11 @@ services:
     deploy:
       replicas: ${PIHOLE_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+        - "homepage.instance.${ENV_NAME}.name=Pi-hole"
+        - "homepage.instance.${ENV_NAME}.icon=pi-hole.png"
+        - "homepage.instance.${ENV_NAME}.href=https://pihole.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=DNS filtering and ad blocking"
         - "traefik.enable=true"
         - "traefik.http.routers.pihole-${ENV_NAME}.rule=Host(`pihole.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.pihole-${ENV_NAME}.tls=true"
@@ -96,6 +202,11 @@ services:
     deploy:
       replicas: ${HOME_ASSISTANT_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Home"
+        - "homepage.instance.${ENV_NAME}.name=Home Assistant"
+        - "homepage.instance.${ENV_NAME}.icon=home-assistant.png"
+        - "homepage.instance.${ENV_NAME}.href=https://home-assistant.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Home automation"
         - "traefik.enable=true"
         - "traefik.http.routers.home-assistant-${ENV_NAME}.rule=Host(`home-assistant.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.home-assistant-${ENV_NAME}.tls=true"
@@ -128,6 +239,11 @@ services:
       - homelab-shared
     deploy:
       replicas: ${MOSQUITTO_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+        - "homepage.instance.${ENV_NAME}.name=Mosquitto"
+        - "homepage.instance.${ENV_NAME}.icon=mqtt.png"
+        - "homepage.instance.${ENV_NAME}.description=MQTT broker"
       restart_policy:
         condition: on-failure
       placement:
@@ -151,6 +267,11 @@ services:
     deploy:
       replicas: ${ZIGBEE2MQTT_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Home"
+        - "homepage.instance.${ENV_NAME}.name=Zigbee2MQTT"
+        - "homepage.instance.${ENV_NAME}.icon=zigbee2mqtt.png"
+        - "homepage.instance.${ENV_NAME}.href=https://zigbee2mqtt.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Zigbee devices"
         - "traefik.enable=true"
         - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.rule=Host(`zigbee2mqtt.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls=true"
@@ -207,6 +328,11 @@ services:
       - homelab-shared
     deploy:
       replicas: ${TRAEFIK_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+        - "homepage.instance.${ENV_NAME}.name=Traefik"
+        - "homepage.instance.${ENV_NAME}.icon=traefik.png"
+        - "homepage.instance.${ENV_NAME}.description=HTTPS ingress"
       restart_policy:
         condition: on-failure
       placement:
@@ -233,6 +359,11 @@ services:
     deploy:
       replicas: ${AUDIOBOOKSHELF_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Media"
+        - "homepage.instance.${ENV_NAME}.name=Audiobookshelf"
+        - "homepage.instance.${ENV_NAME}.icon=audiobookshelf.png"
+        - "homepage.instance.${ENV_NAME}.href=https://audiobookshelf.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Audiobooks and podcasts"
         - "traefik.enable=true"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.rule=Host(`audiobookshelf.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.audiobookshelf-${ENV_NAME}.tls=true"
@@ -264,6 +395,11 @@ services:
     deploy:
       replicas: ${KAVITA_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Media"
+        - "homepage.instance.${ENV_NAME}.name=Kavita"
+        - "homepage.instance.${ENV_NAME}.icon=kavita.png"
+        - "homepage.instance.${ENV_NAME}.href=https://kavita.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Books and papers"
         - "traefik.enable=true"
         - "traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.kavita-${ENV_NAME}.tls=true"
@@ -305,6 +441,11 @@ services:
     deploy:
       replicas: ${POCKET_ID_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+        - "homepage.instance.${ENV_NAME}.name=Pocket ID"
+        - "homepage.instance.${ENV_NAME}.icon=pocket-id.png"
+        - "homepage.instance.${ENV_NAME}.href=https://pocket-id.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Sign in to home services"
         - "traefik.enable=true"
         - "traefik.http.routers.pocket-id-${ENV_NAME}.rule=Host(`pocket-id.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.pocket-id-${ENV_NAME}.tls=true"
@@ -355,6 +496,9 @@ services:
     deploy:
       replicas: ${TREK_REPLICAS}
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Home"
+        - "homepage.instance.${ENV_NAME}.name=Trek"
+        - "homepage.instance.${ENV_NAME}.href=https://trek.${DOMAIN_SUFFIX}"
         - "traefik.enable=true"
         - "traefik.http.routers.trek-${ENV_NAME}.rule=Host(`trek.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.trek-${ENV_NAME}.tls=true"
@@ -379,6 +523,11 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_REDIS_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Backends"
+        - "homepage.instance.${ENV_NAME}.name=Immich Redis"
+        - "homepage.instance.${ENV_NAME}.icon=valkey.png"
+        - "homepage.instance.${ENV_NAME}.description=Immich cache"
       endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
@@ -408,6 +557,11 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_DB_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Backends"
+        - "homepage.instance.${ENV_NAME}.name=Immich Postgres"
+        - "homepage.instance.${ENV_NAME}.icon=postgres.png"
+        - "homepage.instance.${ENV_NAME}.description=Immich database"
       endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
@@ -430,6 +584,11 @@ services:
       - homelab-shared
     deploy:
       replicas: ${IMMICH_ML_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Backends"
+        - "homepage.instance.${ENV_NAME}.name=Immich Machine Learning"
+        - "homepage.instance.${ENV_NAME}.icon=immich.png"
+        - "homepage.instance.${ENV_NAME}.description=Immich machine learning"
       endpoint_mode: dnsrr
       restart_policy:
         condition: on-failure
@@ -461,6 +620,11 @@ services:
       replicas: ${IMMICH_REPLICAS}
       endpoint_mode: dnsrr
       labels:
+        - "homepage.instance.${ENV_NAME}.group=Media"
+        - "homepage.instance.${ENV_NAME}.name=Immich"
+        - "homepage.instance.${ENV_NAME}.icon=immich.png"
+        - "homepage.instance.${ENV_NAME}.href=https://immich.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Photos and videos"
         - "traefik.enable=true"
         - "traefik.http.routers.immich-${ENV_NAME}.rule=Host(`immich.${DOMAIN_SUFFIX}`)"
         - "traefik.http.routers.immich-${ENV_NAME}.tls=true"
