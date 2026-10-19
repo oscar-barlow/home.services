@@ -133,6 +133,47 @@ services:
         reservations:
           memory: 16M
 
+  beszel:
+    image: henrygd/beszel:${BESZEL_VERSION}
+    environment:
+      TZ: 'Europe/London'
+      APP_URL: 'https://beszel.${DOMAIN_SUFFIX}'
+    volumes:
+      - /srv/data/${ENV_NAME}/beszel/data:/beszel_data
+    healthcheck:
+      test: [ "CMD", "/beszel", "health", "--url", "http://localhost:8090" ]
+      interval: 2m
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    networks:
+      - homelab-shared
+    deploy:
+      replicas: ${BESZEL_REPLICAS}
+      labels:
+        - "homepage.instance.${ENV_NAME}.group=Infrastructure"
+        - "homepage.instance.${ENV_NAME}.name=Beszel"
+        - "homepage.instance.${ENV_NAME}.icon=beszel.png"
+        - "homepage.instance.${ENV_NAME}.href=https://beszel.${DOMAIN_SUFFIX}"
+        - "homepage.instance.${ENV_NAME}.description=Host and container monitoring"
+        - "traefik.enable=true"
+        - "traefik.http.routers.beszel-${ENV_NAME}.rule=Host(`beszel.${DOMAIN_SUFFIX}`)"
+        - "traefik.http.routers.beszel-${ENV_NAME}.tls=true"
+        - "traefik.http.routers.beszel-${ENV_NAME}.tls.certresolver=desec"
+        - "traefik.http.routers.beszel-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}"
+        - "traefik.http.routers.beszel-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}"
+        - "traefik.http.services.beszel-${ENV_NAME}.loadbalancer.server.port=8090"
+      restart_policy:
+        condition: on-failure
+      placement:
+        constraints:
+          - node.labels.hardware == n100
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
     environment:
