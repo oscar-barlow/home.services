@@ -118,6 +118,15 @@ A collection of containerized services for a home network environment.
   Mosquitto; web UI proxied by Traefik at `zigbee2mqtt.${DOMAIN_SUFFIX}`.
 - Prod-only (one physical dongle): all three are off in preprod.
 
+### Beszel
+
+- Host and container monitoring: a Swarm hub (prod only, `n100`) plus a
+  per-node binary agent installed as a systemd service on each node
+- Hub UI proxied by Traefik at `beszel.${DOMAIN_SUFFIX}`; data persisted in
+  `/srv/data/${ENV_NAME}/beszel/data`
+- Agents are managed on each node, not shipped from this repo; see
+  [beszel.md](beszel.md) for installation and Docker-monitoring setup
+
 ## Network
 
 Services communicate over a single external Docker Swarm overlay network,
