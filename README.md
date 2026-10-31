@@ -17,7 +17,9 @@ A collection of containerized services for a home network environment.
 - Wildcard TLS via Let's Encrypt using the deSEC DNS-01 challenge
 - Discovers Swarm services via labels; standalone containers (Jellyfin) are
   routed via its file provider — see [jellyfin/README.md](jellyfin/README.md)
-- Runs on the `rpi-3` node in prod
+- Runs on the `n100` manager node in prod; manager access is required for
+  Swarm service discovery through the local Docker socket
+- See [traefik/README.md](traefik/README.md) for migration and verification
 
 ### Pi-hole
 - DNS filtering and ad blocking
