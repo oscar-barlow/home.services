@@ -337,6 +337,7 @@ services:
         condition: on-failure
       placement:
         constraints:
+          - node.role == manager
           - node.labels.hardware == ${TRAEFIK_NODE_HARDWARE}
       resources:
         limits:
