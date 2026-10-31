@@ -1,36 +1,81 @@
 # Home Services
 
-A collection of containerized services for a home network environment.
+Home services run on the N100 using Docker Compose. Production and
+preproduction are separate Compose projects, `homelab-prod` and
+`homelab-preprod`, built from the same [compose.yaml](compose.yaml).
+The Raspberry Pi and Docker Swarm are no longer required.
+
+For an existing Swarm installation, follow [MIGRATION.md](MIGRATION.md) before
+starting these projects. It covers recovered secrets, the existing certificate
+store, stopping old workloads, moving the Zigbee dongle, DNS and rollback.
 
 ## Services
 
-### Homepage
-- Home dashboard at `homepage.${DOMAIN_SUFFIX}`, served over HTTPS by Traefik
-- Runs on the N100 as a Swarm service, with separate prod and preprod configuration
-- Discovers labeled Swarm services, Jellyfin, and ser2net through Docker socket proxies
-- Configuration persisted in `/srv/data/${ENV_NAME}/homepage/config`; see
-  [homepage/README.md](homepage/README.md) for setup and customization
+| Service | Purpose |
+| --- | --- |
+| Traefik | HTTPS ingress and automatic Docker container discovery for both environments |
+| Pi-hole | DNS filtering on two LAN addresses assigned to the N100 |
+| Home Assistant | Home automation |
+| Mosquitto and Zigbee2MQTT | MQTT and Zigbee, with direct USB access to the coordinator |
+| Jellyfin | Media server with Intel Quick Sync GPU access |
+| Audiobookshelf | Audiobooks and podcasts |
+| Kavita | Books and papers |
+| Pocket ID | Sign-in provider |
+| Trek | Home application |
+| Immich | Photos, database, cache and machine learning |
+| Homepage | Automatic container discovery; currently disabled in both environments |
 
-### Traefik
-- Reverse proxy and ingress for all HTTP services, on ports 80 (HTTP, redirected
-  to HTTPS) and 443 (HTTPS)
-- Wildcard TLS via Let's Encrypt using the deSEC DNS-01 challenge
-- Discovers Swarm services via labels; standalone containers (Jellyfin) are
-  routed via its file provider — see [jellyfin/README.md](jellyfin/README.md)
-- Runs on the `rpi-3` node in prod
+Image versions and replica counts remain in `env/.env.prod` and
+`env/.env.preprod`. A replica count of `0` disables a service. Prod runs the
+single Traefik instance that routes both environments. Pi-hole, MQTT, Zigbee
+and Immich are currently enabled only in prod.
 
-### Pi-hole
-- DNS filtering and ad blocking
-- Web interface proxied by Traefik at `pihole.${DOMAIN_SUFFIX}`
-- DNS services on port 53 (TCP/UDP)
-- Custom DNS configuration via `pihole/${ENV_NAME}/etc/dnsmasq.d/02-custom-dns.conf`
-- Log rotation configured (10M max size, 3 files)
+## Configuration and commands
 
-### Jellyfin
-- Media server with Intel Quick Sync hardware transcoding
-- Runs as a standalone container (outside the Swarm stack) for iGPU access; see [jellyfin/README.md](jellyfin/README.md)
-- Started and stopped with the environment via `make env-up` / `make env-down`
-- Configuration persisted in `/srv/data/${ENV_NAME}/jellyfin/config`
+Requires Docker Engine, Docker Compose 2.23.1 or later, Python 3, and GNU Make.
+Run deployment commands on the N100. Copy `env/.env.local.example` to
+`env/.env.local` and set the N100's fixed LAN address and second DNS address.
+Both addresses must already be assigned to the N100. See [dns.md](dns.md).
+
+```bash
+make config ENV=prod
+make config ENV=preprod
+make check
+sudo make preflight ENV=prod
+sudo make env-up ENV=prod
+sudo make env-up ENV=preprod
+make list-services ENV=prod
+make logs ENV=prod SERVICE=traefik
+make service-down ENV=prod SERVICE=homepage
+sudo make service-up ENV=prod SERVICE=pocket-id
+sudo make env-down ENV=preprod
+```
+
+`env-up` checks existing storage, devices and secret files before creating the
+shared ingress bridge and starting containers. It rejects an active Swarm or
+old containers that could access the same data. `env-down` removes the Compose
+containers and project networks; it does not delete bind-mounted data.
+`service-up` follows the configured replica count, so set it to `1` in the env
+file before starting a disabled service. `service-down` stops it until the next
+`env-up` or `service-up`.
+
+`bin/compose` also accepts normal Compose commands with `ENV=prod` or
+`ENV=preprod`. Deployment commands should go through Make so preflight runs.
+Use `sudo` for startup because the host secret directories are root-only.
+
+## Networking, storage and secrets
+
+Each project has its own private backend bridge. HTTP services also join the
+shared `homelab-ingress` bridge so production Traefik can reach both
+environments. Databases and the MQTT broker are not attached to that bridge.
+Saved Swarm service names remain as aliases on the private backend network.
+See [network.md](network.md).
+
+Existing data remains under `/srv/data/prod` and `/srv/data/preprod`, backed
+by the N100's storage. Compose refuses to create missing bind directories.
+See [storage.md](storage.md), [secrets.md](secrets.md), [jellyfin/README.md](jellyfin/README.md)
+and [zigbee.md](zigbee.md). Remote access uses Tailscale on the N100; see
+[ssh.md](ssh.md).
 
 ### Home Assistant
 - Home automation platform
@@ -47,11 +92,6 @@ A collection of containerized services for a home network environment.
   http:
     use_x_forwarded_for: true
     trusted_proxies:
-      # Trust the whole Docker-internal address space. HA validates every hop
-      # in the X-Forwarded-For chain, and the Traefik->HA hop can appear on the
-      # overlay (10.10.x), the swarm ingress mesh (10.0.0.x) or docker_gwbridge
-      # (172.18.x) depending on path — a single subnet leaves some requests 400.
-      # Safe because HA has no published port, so only Traefik can reach it.
       - 10.0.0.0/8
       - 172.16.0.0/12
       - 127.0.0.1
@@ -66,9 +106,9 @@ A collection of containerized services for a home network environment.
   directly):
 
   ```bash
-  docker service scale homelab-${ENV}_home-assistant=0
-  sudo rm /srv/data/${ENV}/home-assistant/config/.storage/http
-  docker service scale homelab-${ENV}_home-assistant=1
+  ENV=prod bin/compose stop home-assistant
+  sudo rm /srv/data/prod/home-assistant/config/.storage/http
+  sudo make service-up ENV=prod SERVICE=home-assistant
   ```
 - SSO via Pocket ID: HA has no built-in OIDC support, and fronting it with an
   auth proxy (Traefik forward-auth / oauth2-proxy) breaks the companion app and
@@ -105,116 +145,3 @@ A collection of containerized services for a home network environment.
   is down. Use a recent companion-app version (older ones predate the in-app
   OIDC flow). TLS verification can stay on: HA reaches Pocket ID over the real
   deSEC/Let's Encrypt cert, so no private-CA path is needed.
-
-### Zigbee (Zigbee2MQTT + Mosquitto + ser2net)
-
-- Zigbee device network for Home Assistant, using a SONOFF ZBDongle-P
-  coordinator. Three services across both nodes; see [zigbee.md](zigbee.md).
-- **ser2net** (Pi 3, standalone container) bridges the dongle's USB serial port
-  to TCP — standalone because Swarm cannot grant host devices; see
-  [ser2net/README.md](ser2net/README.md).
-- **Mosquitto** (Pi 3, Swarm service) is the MQTT broker, port 1883.
-- **Zigbee2MQTT** (N100, Swarm service) drives the coordinator and publishes to
-  Mosquitto; web UI proxied by Traefik at `zigbee2mqtt.${DOMAIN_SUFFIX}`.
-- Prod-only (one physical dongle): all three are off in preprod.
-
-## Network
-
-Services communicate over a single external Docker Swarm overlay network,
-`homelab-shared`, created with `make network-up`. Traefik is the only ingress —
-services are reached by domain name through it rather than by direct host ports
-(the exceptions publish a port because their protocol needs it: Pi-hole DNS on
-53, Mosquitto MQTT on 1883, ser2net's TCP bridge). The network must exist
-before any services are deployed.
-
-### Network Management
-
-```bash
-# Create the shared overlay network (one-time, before deploying services)
-make network-up
-
-# Remove the shared overlay network
-make network-down
-```
-
-See [network.md](network.md) for detailed network architecture and the
-service-discovery caveats.
-
-### SSH Access
-See [ssh.md](ssh.md) for information about remote access to homelab nodes.
-
-### Storage
-See [storage.md](storage.md) for storage architecture and permissions model.
-
-## Node Provisioning
-
-For complete homelab node setup:
-
-```bash
-# Provision a new homelab node
-make provision-node
-```
-
-This command joins the node to the Docker Swarm (`make swarm-join`) and then
-prints the `make node-label` command to run from a manager node to apply the
-node's hardware/class labels.
-
-### Docker Swarm Setup
-
-Initialize or join Docker Swarm with hardware labels for proper service placement:
-
-```bash
-# Initialize swarm manager with hardware labels
-make swarm-init LABEL_HARDWARE=n100 LABEL_CLASS=medium
-
-# Join as worker with hardware labels
-make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-4 LABEL_CLASS=small
-```
-
-See [hardware.md](hardware.md) for detailed hardware specifications, installation guides, and standardized labeling conventions.
-
-## Usage
-
-```bash
-# One-time setup: create the shared overlay network
-make network-up
-
-# Start all services for preprod environment (default)
-make env-up
-
-# Start all services for production environment
-make env-up ENV=prod
-
-# Stop services
-make env-down
-
-# Stop services for specific environment
-make env-down ENV=prod
-
-# Stop network infrastructure
-make network-down
-```
-
-### Service Management
-
-```bash
-# Scale a specific service to 0 replicas (stop it) in an environment
-make service-down ENV=prod SERVICE=zigbee2mqtt
-
-# Remove a specific service from the stack entirely
-make service-remove ENV=prod SERVICE=zigbee2mqtt
-
-# List services and standalone containers for an environment
-make list-services ENV=prod
-```
-
-Individual services are otherwise started and stopped as part of the whole
-environment via `make env-up` / `make env-down`. The standalone containers
-(Jellyfin, ser2net) also have their own `jellyfin-up`/`-down` and
-`ser2net-up`/`-down` targets.
-
-## Resilience
-
-Swarm services use the `on-failure` restart policy; the standalone containers
-(Jellyfin, ser2net) use `unless-stopped`. Both recover automatically from
-crashes.

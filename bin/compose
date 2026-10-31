@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+environment=${ENV:-preprod}
+case "$environment" in
+  prod|preprod) ;;
+  *) printf 'ENV must be prod or preprod\n' >&2; exit 1 ;;
+esac
+args=(--project-directory "$root" --env-file "$root/env/.env.$environment")
+if [[ -f "$root/env/.env.local" ]]; then
+  args+=(--env-file "$root/env/.env.local")
+fi
+args+=(--project-name "homelab-$environment" --file "$root/compose.yaml")
+exec docker compose "${args[@]}" "$@"

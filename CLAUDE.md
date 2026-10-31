@@ -1,61 +1,42 @@
-# CLAUDE.md
+# Repository guidance
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+## Configuration
 
-## Build Commands
-- `make swarm-init` - Initialize Docker Swarm on manager node
-- `make swarm-join` - Join Docker Swarm as worker node
-- `make env-up` - Deploy services stack to Docker Swarm
-- `make env-down` - Remove services stack from Docker Swarm
-- `make service-down` - Scale individual service to 0 replicas
-- `make node-label` - Add hardware/class labels to swarm nodes
+- `compose.yaml` is the single source of truth for all services on the N100.
+- `env/.env.prod` and `env/.env.preprod` contain tracked versions and replica counts.
+- `env/.env.local` contains host-specific overrides and is ignored. Never commit secrets.
+- Secret files live outside the repo in protected per-environment directories.
+- Keep existing `/srv/data/${ENV_NAME}` paths and persisted application settings intact.
 
-## Code Style Guidelines
-- YAML Indentation: Use 2 spaces
-- Docker Compose: Follow official naming conventions for services and volumes
-- Nginx Config: Follow standard nginx configuration patterns
-- Comments: Only add comments to code/config when the user explicitly requests them; otherwise leave the code to speak for itself
-- Network Configuration: Use Docker Swarm overlay networks with Traefik reverse proxy
-- Environment Variables: Use quotes for values with special characters
-- Mount Points: Use relative paths for container config, absolute paths for media
+## Commands
 
-## Boy Scout Principle
-- Leave the codebase and docs better than you found them. Homelab work
-  routinely surfaces documentation that is stale or contradicted by the code
-  (sometimes the same inaccuracy more than once).
-- When you touch an area and notice a doc that is wrong, fix it in passing —
-  challenge claims against the actual code/config rather than trusting the
-  prose, and remove or correct inaccuracies rather than working around them.
-- Keep such cleanups scoped to what you can verify; don't invent behaviour to
-  fill a gap.
+- `make config ENV=prod` or `ENV=preprod`: validate Compose without deployment.
+- `make check`: run configuration and migration preflight tests.
+- `sudo make preflight ENV=prod`: check the actual N100 before deployment.
+- `sudo make env-up ENV=prod`: start or update services after preflight.
+- `sudo make env-down ENV=prod`: stop services without deleting bind-mounted data.
 
-## Configuration Management
-- `docker-swarm-stack.yml` is the single source of truth for all service configurations
-- Service replicas are controlled via environment variables in env/.env.{ENV_NAME} files
-- Use `make env-up ENV=prod` or `make env-up ENV=preprod` to deploy specific environments
-- Environment files `env/.env.prod` and `env/.env.preprod` are tracked in git and hold each environment's service versions and replica counts
+## Deployment boundary
 
-## Cluster Management
-- The Docker Swarm cluster runs on remote infrastructure, not on the development machine
-- DO NOT execute cluster management commands (make commands, docker stack deploy, etc.)
-- Instead, suggest the appropriate commands for the user to run on their cluster nodes
-- Configuration files and documentation should be created/modified as needed
+The N100 is remote infrastructure. Do not SSH into it or run deployment,
+network-management, storage-management or migration commands from the development
+machine. Make changes and validate locally; provide commands for the user to run.
+See `MIGRATION.md` for the one-time Swarm cutover. No Swarm orchestration remains
+in normal operation.
 
-## Repository Structure
-- `docker-swarm-stack.yml` - Main service stack configuration
-- `env/` - Environment-specific configuration files (.env.prod, .env.preprod)
-- Service configurations are organized by component (e.g. `pihole/`, `jellyfin/`,
-  `ser2net/`, `mosquitto/`, `zigbee2mqtt/`)
-- Container persistence volumes are mapped to local directories
+## Style and maintenance
 
-## Branching and Pull Requests
-- Branch off `main`; PRs merge back into `main`.
-- Name feature branches with an area prefix followed by a short kebab-case
-  description. Service work uses the `services/` prefix — e.g.
-  `services/zigbee-mqtt-setup`, `services/upgrade-pihole`,
-  `services/give-immich-server-more-resources`.
-- PR titles are written in imperative sentence case (e.g. "Add Home Assistant
-  service to stack", "Upgrade Trek from v3.3.0 to v4.0.0").
+- Use two-space YAML indentation and standard Compose service/volume names.
+- Add code or configuration comments only when explicitly requested.
+- Use bridge networks and Traefik's Docker provider; databases stay on backend networks.
+- Preserve automatic Homepage discovery and environment-scoped routing labels.
+- Correct nearby documentation against actual configuration; keep cleanup scoped.
 
-## Allowed External Resources
+## Branches and pull requests
+
+Branch from `main` and merge PRs into `main`. Use `services/` plus a short
+kebab-case description for service work. PR titles use imperative sentence case.
+
+## Allowed external resources
+
 - https://github.com/pi-hole/docker-pi-hole - Pi-hole Docker repository

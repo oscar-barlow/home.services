@@ -1,111 +1,37 @@
 # Zigbee
 
-Zigbee device network for Home Assistant, built on Zigbee2MQTT. Three services
-across the two nodes, with a SONOFF ZBDongle-P (CC2652P, Z-Stack) as the
-coordinator.
+The SONOFF ZBDongle-P moves physically from the Pi to the N100, still using its
+USB extension cable. Zigbee2MQTT accesses it directly through Compose's
+`devices` mapping; ser2net and the TCP serial bridge are no longer needed.
 
-## Topology
+Set `ZIGBEE_DEVICE` in `env/.env.prod` to the dongle's stable
+`/dev/serial/by-id/...` path on the N100. The container sees `/dev/ttyUSB0`.
+The adapter remains `zstack`. Zigbee2MQTT's environment overrides select that
+port and the environment's MQTT broker without replacing its existing
+configuration file.
 
-```
-ZBDongle-P (USB)                Pi 3                         N100
-  /dev/ttyUSB0  ──▶  ser2net ──tcp:3333──▶  Zigbee2MQTT ──▶  Mosquitto ──▶  Home Assistant
-                    (standalone)              (Swarm)      mqtt:1883 (Swarm)   (Swarm, MQTT
-                                                                                integration)
-```
+The data directory remains `/srv/data/prod/zigbee2mqtt/data`. Preserve its
+`configuration.yaml`, `database.db`, coordinator backup and all other files.
+These carry the paired network's configuration. Do not overwrite them with the
+seed, generate a new network key or change channel 25 during migration.
+The checked-in `zigbee2mqtt/configuration.yaml` is only a seed for a new setup.
 
-- **ser2net** (Pi 3, standalone container) — bridges the dongle's serial port
-  to TCP. Standalone because Swarm can't grant host devices; see
-  [ser2net/README.md](ser2net/README.md).
-- **Mosquitto** (Pi 3, Swarm service) — MQTT broker. LAN-only, anonymous auth.
-  Config shipped as a Swarm `config` from `mosquitto/mosquitto.conf`; retained
-  state persists in `/srv/data/${ENV_NAME}/mosquitto/data`.
-- **Zigbee2MQTT** (N100, Swarm service) — talks to the coordinator over
-  `tcp://192.168.1.204:3333` (ser2net's host-published port on the Pi) and
-  publishes to `mqtt://homelab-prod_mosquitto:1883`. Web UI proxied by Traefik
-  at `zigbee2mqtt.${DOMAIN_SUFFIX}` (port 8080). Data in
-  `/srv/data/${ENV_NAME}/zigbee2mqtt/data`.
+Mosquitto moves to the N100 and keeps
+`/srv/data/prod/mosquitto/data`. Its old hostname
+`homelab-prod_mosquitto` remains an alias on the production backend bridge, so
+Home Assistant's existing MQTT integration can continue to use it. External
+MQTT clients using the Pi's LAN address must be updated to the N100 address.
 
-Zigbee2MQTT is placed on the N100 because it is a Node.js app (70–150 MB); the
-Pi 3 has only ~159 MB free and runs Traefik + Pi-hole. Mosquitto and ser2net
-are negligible and sit on the Pi with the dongle.
-
-Inter-service addressing differs by service type, and the difference is the
-point:
-
-- **Mosquitto** is reached by its Swarm overlay DNS name
-  (`homelab-${ENV_NAME}_mosquitto`, per [network.md](network.md)). It is a real
-  Swarm service, so that name is managed by Swarm service discovery and is
-  stable across restarts.
-- **ser2net** is reached over the LAN via the Pi's host-published port
-  (`tcp://192.168.1.204:3333`), **not** the overlay. The overlay alias would
-  also work (ser2net binds all interfaces), but ser2net is inherently
-  host-bound — it bridges a device on one specific node — so the host's stable
-  address plus published port is the natural fit and the fewest moving parts:
-  no non-Swarm container enrolled in Swarm overlay DNS. `192.168.1.204` is the
-  Pi's fixed address, the same anchor Pi-hole and Traefik rely on. See
-  [ser2net/README.md](ser2net/README.md).
-
-## Prod-only
-
-There is one physical dongle, so the Zigbee stack runs only in prod:
-`SER2NET_ENABLED=true` and `MOSQUITTO_REPLICAS`/`ZIGBEE2MQTT_REPLICAS=1` in
-`env/.env.prod`; all off (`false`/`0`) in `env/.env.preprod`.
-
-Mosquitto's published port must still differ between environments even though
-preprod is scaled to 0: a Swarm service that publishes a port in ingress mode
-reserves that port swarm-wide regardless of replica count, so a preprod
-`mosquitto` publishing 1883 would block prod from binding it. Hence
-`MOSQUITTO_MQTT_PORT=1883` in prod and `11883` in preprod — the same per-env
-port split Pi-hole and Traefik already use.
-
-## Zigbee2MQTT config is seeded, then owned by Z2M
-
-Like Home Assistant, Zigbee2MQTT rewrites its own `configuration.yaml` (frontend
-settings, the generated network key, the device database). So it is **not**
-shipped read-only from this repo. `zigbee2mqtt/configuration.yaml` is a seed:
-copy it once into the data volume before first boot, after which Z2M owns it.
+Mosquitto and Zigbee2MQTT remain disabled in preprod because there is one
+physical coordinator. Keep `Z2M_WATCHDOG=default` so transient coordinator
+connection failures are retried internally.
 
 ```bash
-sudo mkdir -p /srv/data/prod/zigbee2mqtt/data
-sudo cp zigbee2mqtt/configuration.yaml /srv/data/prod/zigbee2mqtt/data/configuration.yaml
+ls -l /dev/serial/by-id/
+sudo make service-up ENV=prod SERVICE=zigbee2mqtt
+make logs ENV=prod SERVICE=zigbee2mqtt
+make logs ENV=prod SERVICE=mosquitto
 ```
 
-### Channel 25
-
-The seed pins `advanced.channel: 25` to stay clear of 2.4 GHz WiFi (there is a
-TP-Link repeater in the house). **Do not change the channel after devices are
-paired** — it forces re-pairing everything.
-
-## Resilience
-
-Zigbee2MQTT sets `Z2M_WATCHDOG=default` (in `docker-swarm-stack.yml`). Without
-it, Z2M *exits* on a soft failure such as the coordinator connection dropping
-(e.g. ser2net restarting, or Z2M starting before ser2net is ready after a
-reboot), and relies on Swarm to recreate the whole task. The watchdog instead
-retries the adapter connection internally on a back-off, so a brief ser2net
-blip no longer takes the process down. Valid values are `default` or a
-comma-separated list of retry delays in minutes; an invalid value stops Z2M
-from starting.
-
-## Setup sequence
-
-Run cluster commands yourself; this repo only ships config.
-
-1. Plug the dongle into the Pi via the USB extension cable.
-2. Confirm the serial device on the Pi: `ls /dev/ttyUSB*` (or `ls /dev/ttyACM*`).
-   If it is not `ttyUSB0`, set `SER2NET_DEVICE` in `env/.env.prod`.
-3. Deploy. Mosquitto and Zigbee2MQTT are Swarm services and come up with
-   `make env-up ENV=prod` from wherever you normally deploy (the N100).
-   ser2net is a standalone container that must run **on the Pi** (the node the
-   dongle is attached to) — `env-up` on the N100 skips it with a message, so run
-   `make ser2net-up ENV=prod` on the Pi. See [ser2net/README.md](ser2net/README.md).
-4. Confirm the bridge from the N100: `nc -z <pi-ip> 3333`.
-5. Confirm MQTT from the N100: `mosquitto_sub -h <pi-ip> -t '#' -v` while
-   `mosquitto_pub -h <pi-ip> -t test -m hello` from another shell.
-6. Check the Zigbee2MQTT logs for successful coordinator startup, then open
-   `https://zigbee2mqtt.${DOMAIN_SUFFIX}`.
-7. In Home Assistant, add the **MQTT** integration pointed at
-   `homelab-prod_mosquitto` port 1883 (or `<pi-ip>:1883`). Auto-discovery is on
-   by default, so Z2M-paired devices appear automatically.
-8. Pair a test device from the Z2M web UI. Pair the mains-powered smart plug
-   first — it becomes a Zigbee router and strengthens the mesh before the bulbs.
+After migration, verify existing devices in Zigbee2MQTT and Home Assistant
+before enabling device joins or making Zigbee configuration changes.
