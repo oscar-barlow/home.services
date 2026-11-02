@@ -1,50 +1,75 @@
-.PHONY: backup-install env-down env-up export-storage help import-storage inspect-node jellyfin-up jellyfin-down list-services lvm-extend lvm-init network-up network-down node-label provision-node ser2net-up ser2net-down service-down service-remove swarm-init swarm-join
+.PHONY: help config check preflight env-up env-down service-up service-down service-remove list-services logs network-up network-down jellyfin-up jellyfin-down backup-install export-storage import-storage lvm-extend lvm-init
 
-# Default environment if not specified
 ENV ?= preprod
 SERVICE ?=
-TRAEFIK_DYNAMIC_DIR ?= /srv/data/prod/traefik/dynamic
-TRAEFIK_SERVICE ?= homelab-prod_traefik
+COMPOSE = ENV="$(ENV)" bin/compose
 
 help:
-	@echo "Available commands:"
-	@echo "  backup-install - Install backup system (script, systemd units)"
-	@echo "  env-down       - Stop all services for ENV (default: preprod)"
-	@echo "  env-up         - Start all services for ENV (default: preprod)"
-	@echo "  export-storage - Export storage volume via NFS (requires LOCAL_PATH and IP)"
-	@echo "  import-storage - Import storage volume via NFS (requires IP, REMOTE_PATH, LOCAL_PATH)"
-	@echo "  inspect-node   - Inspect Docker Swarm node details (requires HOSTNAME)"
-	@echo "  jellyfin-up    - Start standalone GPU Jellyfin for ENV (default: preprod)"
-	@echo "  jellyfin-down  - Stop standalone Jellyfin for ENV (default: preprod)"
-	@echo "  lvm-init       - Initialize LVM storage system (requires DEVICES)"
-	@echo "  lvm-extend     - Extend LVM with additional devices (requires DEVICES)"
-	@echo "  list-services  - List services for ENV (default: preprod)"
-	@echo "  network-up     - Create shared Docker overlay network for all environments"
-	@echo "  network-down   - Remove shared Docker overlay network"
-	@echo "  node-label     - Add labels to swarm node (requires NODE_ID, optional: LABEL_HARDWARE, LABEL_CLASS)"
-	@echo "  provision-node - Complete node setup (join swarm, configure labels)"
-	@echo "  ser2net-up     - Start standalone ser2net Zigbee serial bridge for ENV (only when SER2NET_ENABLED=true)"
-	@echo "  ser2net-down   - Stop standalone ser2net for ENV (default: preprod)"
-	@echo "  service-down   - Stop specific SERVICE in ENV (requires SERVICE=name)"
-	@echo "  service-remove - Remove specific SERVICE from ENV stack (requires SERVICE=name)"
-	@echo "  swarm-init     - Initialize Docker Swarm on this node as manager (optional: LABEL_HARDWARE, LABEL_CLASS)"
-	@echo "  swarm-join     - Join Docker Swarm as worker (requires MANAGER_IP and TOKEN)"
-	@echo ""
-	@echo "Examples:"
-	@echo "  make env-up ENV=prod"
-	@echo "  make service-down ENV=prod SERVICE=jellyfin"
-	@echo "  make service-remove ENV=prod SERVICE=prometheus"
-	@echo "  make export-storage LOCAL_PATH=/srv/data IP=192.168.1.100"
-	@echo "  make import-storage IP=192.168.1.10 REMOTE_PATH=/media/pi/Data-2 LOCAL_PATH=/mnt/Data-2"
-	@echo "  make inspect-node HOSTNAME=rpi-3-0"
-	@echo "  make list-services ENV=prod"
-	@echo "  make lvm-init DEVICES='/dev/sda /dev/sdb'"
-	@echo "  make lvm-extend DEVICES='/dev/sdc'"
-	@echo "  make network-up"
-	@echo "  make network-down"
-	@echo "  make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"
-	@echo "  make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."
-	@echo "  make swarm-init LABEL_HARDWARE=rpi-4 LABEL_CLASS=medium"
+	@echo "make config ENV=prod|preprod         Validate the Compose configuration"
+	@echo "make check                          Run migration configuration checks"
+	@echo "sudo make preflight ENV=prod|preprod Check secrets, storage and old containers"
+	@echo "sudo make env-up ENV=prod|preprod    Start or update an environment on the N100"
+	@echo "sudo make env-down ENV=prod|preprod  Stop an environment without deleting data"
+	@echo "sudo make service-up ENV=prod SERVICE=name"
+	@echo "make service-down ENV=prod SERVICE=name"
+	@echo "make list-services ENV=prod"
+	@echo "make logs ENV=prod SERVICE=name"
+	@echo "make network-up|network-down        Manage the shared ingress bridge"
+	@echo "Storage and backup: backup-install, export-storage, import-storage, lvm-init, lvm-extend"
+
+config:
+	$(COMPOSE) config --quiet
+
+check:
+	python3 -m unittest discover -s tests -v
+
+preflight:
+	ENV="$(ENV)" bin/preflight
+
+env-up: preflight
+	$(MAKE) network-up
+	$(COMPOSE) up -d --remove-orphans
+	$(COMPOSE) ps
+
+env-down:
+	$(COMPOSE) down --remove-orphans
+
+service-up:
+	@test -n "$(SERVICE)" || { echo "SERVICE is required" >&2; exit 1; }
+	ENV="$(ENV)" bin/preflight "$(SERVICE)"
+	$(MAKE) network-up
+	$(COMPOSE) up -d "$(SERVICE)"
+
+service-down:
+	@test -n "$(SERVICE)" || { echo "SERVICE is required" >&2; exit 1; }
+	$(COMPOSE) stop "$(SERVICE)"
+
+service-remove:
+	@test -n "$(SERVICE)" || { echo "SERVICE is required" >&2; exit 1; }
+	$(COMPOSE) rm --stop --force "$(SERVICE)"
+
+list-services:
+	$(COMPOSE) ps -a
+
+logs:
+	$(COMPOSE) logs --tail 100 $(SERVICE)
+
+network-up:
+	@if docker network inspect homelab-ingress >/dev/null 2>&1; then \
+		test "$$(docker network inspect homelab-ingress --format '{{.Driver}}')" = bridge || { echo "homelab-ingress must be a bridge network" >&2; exit 1; }; \
+	else \
+		docker network create --driver bridge homelab-ingress; \
+	fi
+
+network-down:
+	docker network rm homelab-ingress
+
+jellyfin-up:
+	$(MAKE) service-up ENV="$(ENV)" SERVICE=jellyfin
+
+jellyfin-down:
+	$(MAKE) service-down ENV="$(ENV)" SERVICE=jellyfin
+
 
 backup-install:
 	@echo "🚀 Installing backup system..."
@@ -69,37 +94,6 @@ backup-install:
 	@echo "  sudo vim /etc/backup/preprod-secrets.conf"
 	@echo "📋 Timer status:"
 	systemctl status backup.timer --no-pager
-
-env-down:
-	@echo "🛑 Removing stack from Docker Swarm for environment: $(ENV)"
-	@$(MAKE) jellyfin-down ENV=$(ENV)
-	@$(MAKE) ser2net-down ENV=$(ENV)
-	@echo "🔍 Checking if stack exists..."
-	@if docker stack ls --format "{{.Name}}" | grep -q "^homelab-$(ENV)$$"; then \
-		echo "📦 Removing homelab-$(ENV) stack..."; \
-		docker stack rm homelab-$(ENV); \
-		echo "✅ Stack removal complete!"; \
-	else \
-		echo "⚠️  Stack homelab-$(ENV) not found"; \
-	fi
-
-env-up:
-	@echo "🚀 Deploying stack to Docker Swarm for environment: $(ENV)"
-	@echo "🔍 Checking if swarm is initialized..."
-	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
-		echo "❌ Error: Docker Swarm not initialized. Run 'make swarm-init' first."; \
-		exit 1; \
-	fi
-	@echo "📦 Generating resolved config file..."
-	@export $$(cat env/.env.$(ENV) | xargs) && \
-	envsubst < docker-swarm-stack.yml > docker-swarm-stack.$(ENV).yml
-	@echo "📦 Deploying homelab stack..."
-	docker stack deploy --detach=true --compose-file docker-swarm-stack.$(ENV).yml --prune homelab-$(ENV)
-	@echo "✅ Stack deployment complete!"
-	@$(MAKE) jellyfin-up ENV=$(ENV)
-	@$(MAKE) ser2net-up ENV=$(ENV)
-	@echo "📋 Current services:"
-	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
 
 export-storage:
 	@echo "📦 Starting NFS storage export process..."
@@ -157,32 +151,6 @@ import-storage:
 	@df -h $(LOCAL_PATH) 2>/dev/null || echo "   Unable to show disk usage for $(LOCAL_PATH)"
 	@echo "📂 Directory contents:"
 	@ls -la $(LOCAL_PATH) 2>/dev/null | head -10 || echo "   Unable to list directory contents"
-
-inspect-node:
-	@echo "🔍 Inspecting Docker Swarm node..."
-	@if [ -z "$(HOSTNAME)" ]; then echo "❌ Error: HOSTNAME variable is required. Use: make inspect-node HOSTNAME=rpi-3-0"; exit 1; fi
-	@echo "🔍 Checking if this is a manager node..."
-	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
-		echo "❌ Error: This command must be run from a swarm manager node."; \
-		exit 1; \
-	fi
-	@echo "📋 Finding node by hostname: $(HOSTNAME)"
-	@NODE_ID=$$(docker node ls --format '{{.ID}} {{.Hostname}}' | grep '$(HOSTNAME)' | awk '{print $$1}' | head -1); \
-	if [ -z "$$NODE_ID" ]; then \
-		echo "❌ Error: Node with hostname '$(HOSTNAME)' not found."; \
-		echo "📋 Available nodes:"; \
-		docker node ls --format "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}"; \
-		exit 1; \
-	fi; \
-	echo "✅ Found node: $$NODE_ID"; \
-	echo "📋 Node details:"; \
-	docker node inspect $$NODE_ID --format '{{.Description.Hostname}} ({{.ID}}): {{range $$k,$$v := .Spec.Labels}}{{$$k}}={{$$v}} {{end}}'; \
-	echo "📊 Node status: $$(docker node inspect $$NODE_ID --format '{{.Status.State}}')" ; \
-	echo "🏷️  Node availability: $$(docker node inspect $$NODE_ID --format '{{.Spec.Availability}}')" ; \
-	echo "🏛️  Node role: $$(docker node inspect $$NODE_ID --format '{{.Spec.Role}}')" ; \
-	echo "📍 Node address: $$(docker node inspect $$NODE_ID --format '{{.Status.Addr}}')" ; \
-	echo "🖥️  Platform: $$(docker node inspect $$NODE_ID --format '{{.Description.Platform.OS}}/{{.Description.Platform.Architecture}}')" ; \
-	echo "🔧 Docker version: $$(docker node inspect $$NODE_ID --format '{{.Description.Engine.EngineVersion}}')"
 
 lvm-extend:
 	@echo "📈 Extending LVM storage system..."
@@ -245,204 +213,3 @@ lvm-init:
 	@sudo vgs homelab-vg
 	@sudo lvs homelab-vg
 	@df -h /srv/data
-
-
-jellyfin-up:
-	@echo "🚀 Deploying standalone GPU Jellyfin for environment: $(ENV)"
-	@if [ ! -d "$(TRAEFIK_DYNAMIC_DIR)" ]; then \
-		echo "❌ Error: Traefik dynamic dir $(TRAEFIK_DYNAMIC_DIR) not found. Deploy the swarm stack (Traefik) first."; \
-		exit 1; \
-	fi
-	@echo "📝 Rendering Traefik route..."
-	@export $$(cat env/.env.$(ENV) | xargs) && \
-		envsubst < jellyfin/traefik-dynamic.yml > /tmp/jellyfin-$(ENV).route.yml
-	@if sudo cmp -s /tmp/jellyfin-$(ENV).route.yml $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml 2>/dev/null; then \
-		echo "✅ Traefik route unchanged"; \
-	else \
-		echo "🔁 Route changed — installing and reloading Traefik (inotify misses NFS writes)..."; \
-		sudo cp /tmp/jellyfin-$(ENV).route.yml $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml; \
-		docker service update --force $(TRAEFIK_SERVICE) >/dev/null; \
-	fi
-	@rm -f /tmp/jellyfin-$(ENV).route.yml
-	@echo "📦 Starting Jellyfin container..."
-	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml up -d
-	@echo "✅ Jellyfin ($(ENV)) is up"
-
-jellyfin-down:
-	@echo "🛑 Stopping standalone Jellyfin for environment: $(ENV)"
-	docker compose --env-file env/.env.$(ENV) -p jellyfin-$(ENV) -f jellyfin/docker-compose.yml down
-	@sudo rm -f $(TRAEFIK_DYNAMIC_DIR)/jellyfin-$(ENV).yml
-	@docker service update --force $(TRAEFIK_SERVICE) >/dev/null 2>&1 || true
-	@echo "✅ Jellyfin ($(ENV)) stopped"
-
-ser2net-up:
-	@if [ "$$(grep -E '^SER2NET_ENABLED=' env/.env.$(ENV) | cut -d= -f2)" != "true" ]; then \
-		echo "⏭️  ser2net disabled for $(ENV) (SER2NET_ENABLED != true) — skipping"; \
-	elif [ ! -e "$$(grep -E '^SER2NET_DEVICE=' env/.env.$(ENV) | cut -d= -f2)" ]; then \
-		echo "⏭️  ser2net device not found on this node — the dongle is on the Pi, but"; \
-		echo "    ser2net is a standalone (non-Swarm) container that starts on whichever"; \
-		echo "    node runs 'make'. Run 'make ser2net-up ENV=$(ENV)' on the Pi. Skipping."; \
-	else \
-		echo "🚀 Deploying standalone ser2net Zigbee serial bridge for environment: $(ENV)"; \
-		docker compose --env-file env/.env.$(ENV) -p ser2net-$(ENV) -f ser2net/docker-compose.yml up -d --build; \
-		echo "✅ ser2net ($(ENV)) is up"; \
-	fi
-
-ser2net-down:
-	@echo "🛑 Stopping standalone ser2net for environment: $(ENV)"
-	@docker compose --env-file env/.env.$(ENV) -p ser2net-$(ENV) -f ser2net/docker-compose.yml down 2>/dev/null || true
-	@echo "✅ ser2net ($(ENV)) stopped"
-
-list-services:
-	@echo "📋 Services for environment: $(ENV)"
-	docker service ls --filter label=com.docker.stack.namespace=homelab-$(ENV)
-	@echo "📋 Standalone containers for environment: $(ENV)"
-	docker ps --filter label=com.docker.compose.project=jellyfin-$(ENV) --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
-	docker ps --filter label=com.docker.compose.project=ser2net-$(ENV) --format "table {{.Names}}\t{{.Status}}\t{{.Image}}"
-
-network-up:
-	@echo "🚀 Creating Docker network"
-	docker network create --driver overlay --attachable --scope swarm --subnet=10.10.1.0/24 --subnet=10.10.2.0/24 homelab-shared
-
-network-down:
-	@echo "🛑 Removing Docker network"
-	@if docker network ls --filter name=homelab-shared --format "{{.Name}}" | grep -q "homelab-shared"; then \
-		docker network rm homelab-shared; \
-		echo "✅ Network removed successfully!"; \
-	else \
-		echo "⚠️  Network homelab-shared not found"; \
-	fi
-
-node-label:
-	@echo "🏷️ Adding labels to swarm node..."
-	@if [ -z "$(NODE_ID)" ]; then echo "❌ Error: NODE_ID variable is required. Use: make node-label NODE_ID=xyz123abc LABEL_HARDWARE=rpi-3 LABEL_CLASS=small"; exit 1; fi
-	@echo "🔍 Checking if this is a manager node..."
-	@if ! docker info --format '{{.Swarm.ControlAvailable}}' | grep -q "true"; then \
-		echo "❌ Error: This command must be run from a swarm manager node."; \
-		exit 1; \
-
-	fi
-	@echo "📋 Verifying node $(NODE_ID) exists..."
-	@if ! docker node inspect $(NODE_ID) >/dev/null 2>&1; then \
-		echo "❌ Error: Node $(NODE_ID) not found."; \
-		echo "   Available nodes:"; \
-		docker node ls --format "table {{.ID}}\t{{.Hostname}}\t{{.Status}}\t{{.Availability}}"; \
-		exit 1; \
-	fi
-	@if [ -n "$(LABEL_HARDWARE)" ]; then \
-		echo "🔧 Adding hardware label 'hardware=$(LABEL_HARDWARE)'..."; \
-		docker node update --label-add hardware=$(LABEL_HARDWARE) $(NODE_ID); \
-	fi
-	@if [ -n "$(LABEL_CLASS)" ]; then \
-		echo "🔧 Adding class label 'class=$(LABEL_CLASS)'..."; \
-		docker node update --label-add class=$(LABEL_CLASS) $(NODE_ID); \
-	fi
-	@echo "✅ Node labeling complete!"
-	@echo "📋 Node details:"
-	@docker node inspect $(NODE_ID) --format 'Node: {{.Description.Hostname}} ({{.ID}}){{range $$k, $$v := .Spec.Labels}}{{printf "\n  %s: %s" $$k $$v}}{{end}}'
-
-provision-node:
-	@echo "🚀 Provisioning homelab node..."
-	@echo "Step 1: Joining Docker Swarm..."
-	@if [ -n "$(MANAGER_IP)" ] && [ -n "$(TOKEN)" ]; then \
-		$(MAKE) swarm-join MANAGER_IP=$(MANAGER_IP) TOKEN=$(TOKEN); \
-	else \
-		echo "🔍 Docker Swarm join parameters needed."; \
-		read -p "Enter manager IP (or press Enter to skip): " manager_ip; \
-		if [ -n "$$manager_ip" ]; then \
-			read -p "Enter join token: " token; \
-			$(MAKE) swarm-join MANAGER_IP=$$manager_ip TOKEN=$$token; \
-		else \
-			echo "⚠️  Skipping swarm join"; \
-			echo "   To join swarm later: make swarm-join MANAGER_IP=<ip> TOKEN=<token>"; \
-		fi; \
-	fi
-	@echo "Step 2: Node labeling..."
-	@echo "⚠️  Node labels must be added from a manager node using:"
-	@echo "   make node-label NODE_ID=<node-id> LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"
-	@echo "   Use 'docker node ls' on manager to see node IDs"
-	@echo "✅ Node provisioning complete!"
-
-service-down:
-	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-down SERVICE=servicename"; exit 1; fi
-	@echo "🛑 Scaling $(SERVICE) to 0 replicas in homelab-$(ENV) stack..."
-	@if docker service ls --filter name=homelab-$(ENV)_$(SERVICE) --format "{{.Name}}" | grep -q "homelab-$(ENV)_$(SERVICE)"; then \
-		docker service scale homelab-$(ENV)_$(SERVICE)=0; \
-		echo "✅ Service $(SERVICE) scaled to 0 replicas"; \
-	else \
-		echo "⚠️  Service homelab-$(ENV)_$(SERVICE) not found"; \
-	fi
-
-service-remove:
-	@if [ -z "$(SERVICE)" ]; then echo "Error: SERVICE variable is required. Use: make service-remove SERVICE=servicename"; exit 1; fi
-	@echo "🗑️ Removing $(SERVICE) from homelab-$(ENV) stack..."
-	@if docker service ls --filter name=homelab-$(ENV)_$(SERVICE) --format "{{.Name}}" | grep -q "homelab-$(ENV)_$(SERVICE)"; then \
-		docker service rm homelab-$(ENV)_$(SERVICE); \
-		echo "✅ Service $(SERVICE) removed from stack"; \
-	else \
-		echo "⚠️  Service homelab-$(ENV)_$(SERVICE) not found"; \
-	fi
-
-
-swarm-init:
-	@echo "🚀 Initializing Docker Swarm on this node as manager..."
-	@echo "🔍 Checking if node is already part of a swarm..."
-	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
-		echo "🔧 Initializing new swarm..."; \
-		docker swarm init; \
-		echo "✅ Swarm initialization complete!"; \
-		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		if [ -n "$(LABEL_HARDWARE)" ]; then \
-			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to manager node..."; \
-			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_CLASS)" ]; then \
-			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to manager node..."; \
-			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
-			echo "✅ Labels added successfully!"; \
-		fi; \
-		echo "📋 Join tokens for worker nodes:"; \
-		docker swarm join-token worker; \
-		echo "📋 Join tokens for manager nodes:"; \
-		docker swarm join-token manager; \
-	else \
-		echo "✅ Node is already part of a swarm"; \
-		echo "📋 Current swarm status:"; \
-		docker node ls; \
-		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		if [ -n "$(LABEL_HARDWARE)" ]; then \
-			echo "🏷️ Adding hardware label 'hardware=$(LABEL_HARDWARE)' to manager node..."; \
-			docker node update --label-add hardware=$(LABEL_HARDWARE) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_CLASS)" ]; then \
-			echo "🏷️ Adding class label 'class=$(LABEL_CLASS)' to manager node..."; \
-			docker node update --label-add class=$(LABEL_CLASS) $$NODE_ID; \
-		fi; \
-		if [ -n "$(LABEL_HARDWARE)" ] && [ -n "$(LABEL_CLASS)" ]; then \
-			echo "✅ Labels added successfully!"; \
-		fi; \
-	fi
-
-swarm-join:
-	@echo "🤝 Joining Docker Swarm as worker node..."
-	@if [ -z "$(MANAGER_IP)" ]; then echo "❌ Error: MANAGER_IP variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
-	@if [ -z "$(TOKEN)" ]; then echo "❌ Error: TOKEN variable is required. Use: make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-..."; exit 1; fi
-	@echo "🔍 Checking if node is already part of a swarm..."
-	@if docker info --format '{{.Swarm.LocalNodeState}}' | grep -q "inactive"; then \
-		echo "🔗 Joining swarm at $(MANAGER_IP):2377..."; \
-		docker swarm join --token $(TOKEN) $(MANAGER_IP):2377; \
-		echo "✅ Successfully joined swarm!"; \
-		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		echo "📋 Node ID: $$NODE_ID"; \
-		echo "⚠️  To add labels, run from a manager node:"; \
-		echo "   make node-label NODE_ID=$$NODE_ID LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"; \
-	else \
-		echo "✅ Node is already part of a swarm"; \
-		NODE_ID=$$(docker info --format '{{.Swarm.NodeID}}'); \
-		echo "📋 Node ID: $$NODE_ID (Address: $$(docker info --format '{{.Swarm.NodeAddr}}'))"; \
-		echo "⚠️  To add/update labels, run from a manager node:"; \
-		echo "   make node-label NODE_ID=$$NODE_ID LABEL_HARDWARE=<hardware> LABEL_CLASS=<class>"; \
-	fi
-

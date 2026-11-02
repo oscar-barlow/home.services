@@ -9,7 +9,7 @@
 - **iGPU**: Intel UHD Graphics (Alder Lake-N) with Quick Sync Video.
   Hardware decode for H.264/HEVC/VP9/AV1 and encode for H.264/HEVC/VP9.
   Exposed at `/dev/dri/renderD128` and used by Jellyfin for hardware
-  transcoding (see the `jellyfin` service in `docker-swarm-stack.yml`).
+  transcoding (see the `jellyfin` service in `compose.yaml`).
 
 ## Operating System Installation
 
@@ -93,36 +93,18 @@ auto enp1s0
 iface enp1s0 inet dhcp
 ```
 
-## Docker Swarm Node Labels
+## Service host
 
-When joining nodes to the Docker Swarm, use standardized labels to identify hardware and capacity:
+All services run on the N100 using Compose. There are no placement labels or
+manager roles. The N100 needs access to its existing `/srv/data` storage, the
+Intel GPU and the Zigbee coordinator moved from the Pi. See [MIGRATION.md](MIGRATION.md).
 
-### Hardware Labels (`LABEL_HARDWARE`)
-- `rpi-3` - Raspberry Pi 3 (the current cluster's Pi; runs Traefik + Pi-hole,
-  and the Zigbee dongle attaches here)
-- `rpi-4` - Raspberry Pi 4
-- `n100` - N100 Mini PC (like Geekom Mini Air12-0)
-
-### Class Labels (`LABEL_CLASS`)
-- `extra-small` - Minimal resource nodes
-- `small` - Low resource nodes
-- `medium` - Moderate resource nodes
-- `large` - High resource nodes
-- `extra-large` - Maximum resource nodes
-
-### Usage Examples
-```bash
-# Initialize swarm with labels
-make swarm-init LABEL_HARDWARE=n100 LABEL_CLASS=medium
-
-# Join worker with labels  
-make swarm-join MANAGER_IP=192.168.1.10 TOKEN=SWMTKN-... LABEL_HARDWARE=rpi-4 LABEL_CLASS=small
-```
+The Pi is retired after service, DNS and Tailscale route verification. Keep it
+powered off during cutover so it cannot restart old services against shared
+storage or advertise competing routes.
 
 ## Notes
 
-- Keep WiFi configuration as backup
-- Ethernet recommended for Docker Swarm networking performance
-- Driver may need rebuilding after kernel updates
-- WiFi provides adequate performance for most services when ethernet driver unavailable
-- Traefik reverse proxy eliminates need for individual service IP addresses
+- Keep WiFi configuration as backup.
+- Ethernet is recommended for service networking.
+- The YT6801 driver may need rebuilding after kernel updates.

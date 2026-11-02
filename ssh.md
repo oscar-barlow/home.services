@@ -1,44 +1,30 @@
-## Tailscale Setup for Remote Homelab Access
+# Remote Access
 
-### Device Configuration
+The N100 runs Tailscale and takes over the Pi's subnet-router role. Before
+retiring the Pi, enable IPv4 forwarding on the N100 and advertise the actual
+LAN subnet. For this LAN:
 
-**Pi (Subnet Router):**
 ```bash
-sudo tailscale up --advertise-routes=192.168.1.0/24
-```
-- Advertises your home network to other Tailscale devices
-- Allows remote devices to reach local services and devices
-- Runs continuously
-
-**Geekom (Home Device):**
-```bash
-sudo tailscale up
-```
-- Basic Tailscale connectivity only
-- No route handling needed since it's always at home
-- Can be reached remotely via Tailscale IP
-
-**Laptop (Roaming Device):**
-
-*When at home:*
-```bash
-sudo tailscale up --reset
+sudo sysctl -w net.ipv4.ip_forward=1
+sudo tailscale set --advertise-routes=192.168.1.0/24
 ```
 
-*When away from home:*
+Persist `net.ipv4.ip_forward=1` through the N100's system sysctl configuration,
+and approve the advertised route in the Tailscale admin console. Verify access
+to another LAN device remotely while the Pi is powered off before considering
+the migration complete. The laptop's accepted subnet routes can otherwise
+continue using the Pi even after service migration.
+
+Update the tailnet's DNS resolver from the Pi to the N100's primary LAN IP
+only after Pi-hole is verified. Public DNS remains useful during cutover but
+cannot resolve private `lan.barlows.cool` records.
+
+On the laptop, if temporary DNS bypass was used:
+
 ```bash
-sudo tailscale up --accept-routes
+sudo tailscale set --accept-dns=true
 ```
 
-### Why This Works
-
-- **Pi advertises routes** so remote devices know how to reach your home network (192.168.1.0/24)
-- **Laptop accepts routes only when away** to avoid routing conflicts when already on the home network
-- **--reset is crucial** to clear any previous route configurations that could cause local network conflicts
-- **Geekom needs no special config** since it's always local and just needs to be reachable
-
-### Usage Patterns
-
-- **At home:** Use local IPs (192.168.1.x) for everything
-- **Remote:** Use Tailscale IPs (100.x.x.x) or local IPs (which route through Pi)
-- **DNS:** Works automatically via Pi-hole at 192.168.1.192 when remote
+Also restore any temporary per-interface public DNS override, or reconnect the
+network to obtain the router's updated DHCP DNS configuration. Keep subnet
+route acceptance configured for whether the laptop is at home or remote.

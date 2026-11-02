@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+import ipaddress
+import json
+import os
+from pathlib import Path
+import stat
+import subprocess
+import sys
+
+
+def enabled_services(model, selected):
+    services = model["services"]
+    if selected:
+        unknown = set(selected) - services.keys()
+        if unknown:
+            raise ValueError("Unknown services: " + ", ".join(sorted(unknown)))
+        wanted = set(selected)
+        pending = list(selected)
+        while pending:
+            for dependency in services[pending.pop()].get("depends_on", {}):
+                if dependency not in wanted:
+                    wanted.add(dependency)
+                    pending.append(dependency)
+    else:
+        wanted = set(services)
+    return {
+        name: service
+        for name, service in services.items()
+        if name in wanted and int(service.get("scale", 1)) > 0
+    }
+
+
+def validate(model, selected=(), addresses=()):
+    errors = []
+    for name, service in enabled_services(model, selected).items():
+        for mount in service.get("volumes", []):
+            if mount["type"] == "bind" and not Path(mount["source"]).exists():
+                errors.append(f"{name}: missing bind source {mount['source']}")
+        for device in service.get("devices", []):
+            if not Path(device["source"]).exists():
+                errors.append(f"{name}: missing device {device['source']}")
+        for secret in service.get("secrets", []):
+            source = Path(model["secrets"][secret["source"]]["file"])
+            if not source.is_file() or source.stat().st_size == 0:
+                errors.append(f"{name}: missing or empty secret {source}")
+                continue
+            if source.stat().st_uid != os.geteuid():
+                errors.append(f"{name}: secret must belong to the deploying user: {source}")
+            if source.parent.stat().st_uid != os.geteuid():
+                errors.append(f"{name}: secret directory must belong to the deploying user: {source.parent}")
+            if stat.S_IMODE(source.parent.stat().st_mode) & 0o077:
+                errors.append(f"{name}: secret directory must have mode 0700: {source.parent}")
+            if stat.S_IMODE(source.stat().st_mode) & 0o022:
+                errors.append(f"{name}: secret must not be writable by group or others: {source}")
+            if (stat.S_IMODE(source.stat().st_mode) & 0o444) != 0o444:
+                errors.append(f"{name}: secret needs mode 0444 inside its protected directory: {source}")
+        for config in service.get("configs", []):
+            source = model["configs"][config["source"]].get("file")
+            if source and not Path(source).is_file():
+                errors.append(f"{name}: missing configuration {source}")
+        if name == "traefik":
+            for mount in service.get("volumes", []):
+                if mount["target"] == "/letsencrypt":
+                    certificate = Path(mount["source"]) / "acme.json"
+                    if not certificate.is_file() or certificate.stat().st_size == 0:
+                        errors.append(f"traefik: missing existing certificate store {certificate}")
+                if mount["target"] == "/etc/traefik/dynamic":
+                    for legacy in Path(mount["source"]).glob("jellyfin-*.yml"):
+                        errors.append(f"traefik: archive legacy Jellyfin file route {legacy}")
+        if name == "pihole":
+            bind_addresses = {port["host_ip"] for port in service["ports"]}
+            if len(bind_addresses) != 2:
+                errors.append("pihole: configure two distinct LAN DNS addresses")
+            for address in bind_addresses:
+                try:
+                    parsed = ipaddress.IPv4Address(address)
+                    if parsed.is_unspecified or parsed.is_loopback or parsed.is_multicast:
+                        raise ValueError()
+                except ValueError:
+                    errors.append(f"pihole: invalid LAN address {address}")
+                    continue
+                if address not in addresses:
+                    errors.append(f"pihole: LAN address is not assigned to this host: {address}")
+    return errors
+
+
+def main():
+    root = Path(__file__).resolve().parent.parent
+    raw = subprocess.check_output([str(root / "bin/compose"), "config", "--format", "json"], text=True)
+    model = json.loads(raw)
+    selected = sys.argv[1:]
+    enabled_services(model, selected)
+    environment = os.environ.get("ENV", "preprod")
+    swarm = subprocess.check_output(
+        ["docker", "info", "--format", "{{.Swarm.LocalNodeState}}"], text=True
+    ).strip()
+    if swarm != "inactive":
+        raise ValueError("This host is still in Swarm; complete the migration cutover first")
+    for label in (
+        f"com.docker.stack.namespace=homelab-{environment}",
+        f"com.docker.compose.project=jellyfin-{environment}",
+    ):
+        old = subprocess.check_output(["docker", "ps", "-q", "--filter", "label=" + label], text=True)
+        if old.strip():
+            raise ValueError(f"Old {environment} containers still run; complete the migration cutover first")
+    interfaces = json.loads(subprocess.check_output(["ip", "-j", "-4", "address"], text=True))
+    addresses = {item["local"] for interface in interfaces for item in interface.get("addr_info", [])}
+    errors = validate(model, selected, addresses)
+    if errors:
+        raise ValueError("\n".join(errors))
+    print(f"{environment}: secrets, storage, devices and migration checks passed")
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except (OSError, ValueError, subprocess.CalledProcessError) as error:
+        print(str(error), file=sys.stderr)
+        sys.exit(1)

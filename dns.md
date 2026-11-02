@@ -1,105 +1,49 @@
 # DNS Management
 
-Unified DNS architecture using single Pi-hole instance with Traefik reverse proxy for all environments.
+One production Pi-hole container serves both environments on the N100. Its
+TCP/UDP port 53 is published on `N100_LAN_IP` and `DNS_SECONDARY_IP`. These must
+be two distinct addresses assigned to the N100's LAN interface. Reserve both
+outside the router's dynamic DHCP allocation. Persist the secondary address
+using the N100's existing network configuration before switching router DNS.
 
-## Architecture Overview
+Set both values in the ignored `env/.env.local`, starting from
+`env/.env.local.example`. The second address belongs to the N100 host; no
+macvlan network or separate Pi-hole container IP is required. Explicit address
+binding avoids claiming a loopback DNS listener such as systemd-resolved's
+`127.0.0.53:53`.
 
-**Single Pi-hole**: Handles DNS for all environments with direct port 53 exposure
-**Single Traefik**: Reverse proxy on production node routing all HTTP traffic
-**Unified Swarm**: All environments run in same Docker Swarm with label-based routing
+## Local names
 
-## How It Works
+The `pihole_custom_dns` config in `compose.yaml` defines wildcard records for
+`home`, `preprod.home`, `lan.barlows.cool` and `preprod.lan.barlows.cool`. All
+point to `N100_LAN_IP`. Traefik distinguishes environments using host rules.
+The current HTTPS routers use the `lan.barlows.cool` domains from the env files;
+the old `.home` DNS aliases do not add HTTP routers on their own.
 
-1. All domains (`*.home`, `*.preprod.home`) route to the machine running Traefik
-2. Pi-hole provides DNS resolution, Traefik handles HTTP routing
-3. Traefik uses service labels with `${ENV_NAME}` suffix for environment separation
-4. Services distinguished by labels: `service-prod` vs `service-preprod`
+Compose interpolates the address into the inline DNS config. Redeploy Pi-hole
+after changing it; Swarm config version bumps are no longer required.
+Preprod Pi-hole remains disabled and retains its alternative port 5353.
 
-## Port Strategy
+## Verification
 
-**Pi-hole**:
-- Port 53 (DNS): Direct exposure (DNS protocol requirement)  
-- Web interface: HTTP proxied through Traefik
-
-**All other services**: HTTP traffic proxied through Traefik on ports 80/443
-
-**Why this architecture**:
-- Centralized DNS and reverse proxy management
-- Environment isolation via service labels, not infrastructure
-- Simplified networking with single entry point
-
-## DNS Configuration
-
-DNS uses wildcard domain routing - both `*.home` and `*.preprod.home` resolve to the same machine where Traefik is running. Environment separation happens at the Traefik routing layer using service labels.
-
-### Adding New Services
-
-No DNS changes needed:
-
-1. Add service to `docker-swarm-stack.yml` with Traefik labels including `${ENV_NAME}`
-2. Deploy: `make env-up ENV=prod` or `make env-up ENV=preprod` 
-3. Access automatically via `service.home` or `service.preprod.home`
-
-### Adding New Environments
-
-1. Add domain to DNS config routing to the Traefik machine
-2. Create environment file: `env/.env.newenv` with `ENV_NAME=newenv`
-3. Deploy: `make env-up ENV=newenv`
-
-All services automatically work via `service.newenv.home` - Traefik handles routing based on service labels.
-
-## Troubleshooting
-
-### DNS Not Working
-
-1. **Check if the config file is mounted:**
-   ```bash
-   # Get Pi-hole container ID
-   docker service ps homelab-${ENV_NAME}_pihole
-   docker exec <container-id> cat /etc/dnsmasq.d/02-custom-dns.conf
-   ```
-
-2. **Verify DNS resolution:**
-   ```bash
-   # Test from your local machine
-   nslookup jellyfin.home 192.168.1.204  # Production Pi-hole
-   nslookup jellyfin.preprod.home 192.168.1.11  # Preprod Pi-hole
-   ```
-
-3. **Check service logs:**
-   ```bash
-   docker service logs homelab-${ENV_NAME}_pihole
-   ```
-
-4. **Restart Pi-hole:**
-   ```bash
-   make service-down SERVICE=pihole ENV=${ENV_NAME}
-   make env-up ENV=${ENV_NAME}
-   ```
-
-### Traefik Not Routing
-
-1. **Check Traefik dashboard** (if enabled)
-2. **Verify service labels** in docker-swarm-stack.yml
-3. **Check Traefik logs** for routing issues
-
-### Testing Access
+Keep the router on public DNS until both addresses answer UDP and TCP queries.
+Run from another LAN machine, substituting the assigned addresses:
 
 ```bash
-# Test DNS resolution
-nslookup jellyfin.home
-
-# Test end-to-end access
-curl -H "Host: jellyfin.home" http://192.168.1.204
+dig @N100_PRIMARY_IP example.com
+dig +tcp @N100_PRIMARY_IP example.com
+dig @N100_SECONDARY_IP example.com
+dig +tcp @N100_SECONDARY_IP example.com
+dig @N100_PRIMARY_IP pocket-id.lan.barlows.cool
 ```
 
-## Version Control
+The local record must return the primary N100 address. Only then set the
+router's two DNS entries and renew clients' DHCP leases or reconnect them.
+Changing router DNS does not immediately change cached client settings.
 
-The DNS configuration is now version-controlled in this repository:
+Pi-hole retains the previous tmpfs setup for `/etc/pihole`: UI changes to its
+filtering configuration are not persisted across recreation. Its admin
+password is supplied from a protected host secret file. See [secrets.md](secrets.md).
 
-- **File**: `dns/custom-dns.conf`
-- **Changes**: Commit changes to DNS config like any other code
-- **Deployment**: Changes take effect when Pi-hole restarts
-- **Rollback**: Use git to revert DNS changes if needed
-
-This approach provides full change tracking and rollback capability for DNS configuration.
+Update Tailscale's tailnet DNS resolver to the N100's primary address too; its
+existing Pi address otherwise remains a dependency for tailnet clients.

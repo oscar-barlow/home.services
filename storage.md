@@ -6,12 +6,20 @@ This document describes the storage system architecture and permissions model fo
 
 ### Environment Segregation
 
-All services run as root within their containers for simplicity. Environment isolation is achieved through:
+Services retain the user settings supplied by their images. Environment separation uses:
 
 - **Directory separation**: `/srv/data/prod/` vs `/srv/data/preprod/`
-- **Network isolation**: Separate IP ranges and DNS resolution
-- **Service naming**: Different stack names (`homelab-prod` vs `homelab-preprod`)
+- **Backend networks**: Separate Compose bridges, with a shared HTTP ingress bridge
+- **Service naming**: Different Compose project names (`homelab-prod` vs `homelab-preprod`)
 
+
+Existing service data and Traefik certificates remain on the N100 under
+`/srv/data/${ENV_NAME}`. The Pi previously mounted that storage over NFS;
+Compose on the N100 uses the same paths locally. Verify the backing mount
+before deployment. Missing bind sources fail instead of being silently created.
+
+Secrets live outside this data tree; see [secrets.md](secrets.md) for their
+permissions and separate backup requirement.
 
 ## Mount Point Conventions
 
