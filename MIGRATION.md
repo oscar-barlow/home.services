@@ -12,15 +12,19 @@ backups before starting. Never run old and new writers against the same data.
 
 ## Host settings
 
-Requires Docker Compose 2.23.1 or later, Python 3 and GNU Make. Check out
-`services/migrate-to-compose` on the N100, then:
+Requires Docker Compose 2.23.1 or later, Python 3 and GNU Make. In the tracked
+`env/.env.prod` and `env/.env.preprod` files, set `N100_LAN_IP` to the fixed
+primary LAN IPv4 address and `DNS_SECONDARY_IP` to a second unused address in
+the same LAN. Both projects run on the N100, so use the same values in both
+files. `SECRETS_DIR` is also tracked and defaults to `/etc/home-services/secrets`;
+only the directory path is public, not the secret contents. Commit these
+settings and pull them onto the N100 instead of copying env files separately.
 
-```bash
-cp env/.env.local.example env/.env.local
-```
+No `env/.env.local` file is required. If one was created using an earlier
+version of this guide, remove its duplicate entries or remove the file:
+its values override the tracked configuration.
 
-Set `N100_LAN_IP` to the fixed primary LAN IPv4 address and `DNS_SECONDARY_IP`
-to a second unused address in the same LAN. Reserve both outside DHCP's dynamic
+Reserve both LAN addresses outside DHCP's dynamic
 pool. Assign the second address persistently through the N100's existing
 network manager. Both must appear in `ip -4 address` before Pi-hole starts.
 Reusing the old Pi address requires permanently disconnecting the Pi from the

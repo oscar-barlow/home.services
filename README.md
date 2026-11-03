@@ -33,9 +33,16 @@ and Immich are currently enabled only in prod.
 ## Configuration and commands
 
 Requires Docker Engine, Docker Compose 2.23.1 or later, Python 3, and GNU Make.
-Run deployment commands on the N100. Copy `env/.env.local.example` to
-`env/.env.local` and set the N100's fixed LAN address and second DNS address.
+Run deployment commands on the N100. Set `N100_LAN_IP` and `DNS_SECONDARY_IP`
+in the tracked `env/.env.prod` and `env/.env.preprod` files. Both environments
+run on the same host, so use the same addresses in both files. Commit and pull
+these settings through git; no local env file needs copying to the N100.
 Both addresses must already be assigned to the N100. See [dns.md](dns.md).
+
+`env/.env.local` is an optional ignored override, loaded after the tracked file.
+If you created one using the earlier migration guide, remove duplicate entries
+or the file itself to use the tracked settings. Secret values remain in their
+separate protected files; the tracked `SECRETS_DIR` only specifies their path.
 
 ```bash
 make config ENV=prod

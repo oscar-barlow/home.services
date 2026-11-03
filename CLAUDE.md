@@ -3,8 +3,8 @@
 ## Configuration
 
 - `compose.yaml` is the single source of truth for all services on the N100.
-- `env/.env.prod` and `env/.env.preprod` contain tracked versions and replica counts.
-- `env/.env.local` contains host-specific overrides and is ignored. Never commit secrets.
+- `env/.env.prod` and `env/.env.preprod` contain tracked versions, replica counts, LAN addresses and secret-directory paths.
+- `env/.env.local` is an optional ignored override, not required deployment configuration. Never commit secret values.
 - Secret files live outside the repo in protected per-environment directories.
 - Keep existing `/srv/data/${ENV_NAME}` paths and persisted application settings intact.
 
