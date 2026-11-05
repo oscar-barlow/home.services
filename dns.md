@@ -6,9 +6,10 @@ be two distinct addresses assigned to the N100's LAN interface. Reserve both
 outside the router's dynamic DHCP allocation. Persist the secondary address
 using the N100's existing network configuration before switching router DNS.
 
-Set both values in the ignored `env/.env.local`, starting from
-`env/.env.local.example`. The second address belongs to the N100 host; no
-macvlan network or separate Pi-hole container IP is required. Explicit address
+Set both values in the tracked `env/.env.prod` and `env/.env.preprod` files,
+using the same addresses for both environments on the N100. Commit and pull
+these public settings through git. The second address belongs to the N100 host;
+no macvlan network or separate Pi-hole container IP is required. Explicit address
 binding avoids claiming a loopback DNS listener such as systemd-resolved's
 `127.0.0.53:53`.
 

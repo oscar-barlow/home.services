@@ -69,10 +69,10 @@ services:
     secrets:
       - pihole_web_password
     ports:
-      - ${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}:${PIHOLE_DNS_PORT}:53/tcp
-      - ${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}:${PIHOLE_DNS_PORT}:53/udp
-      - ${DNS_SECONDARY_IP:?Set DNS_SECONDARY_IP in env/.env.local}:${PIHOLE_DNS_PORT}:53/tcp
-      - ${DNS_SECONDARY_IP:?Set DNS_SECONDARY_IP in env/.env.local}:${PIHOLE_DNS_PORT}:53/udp
+      - ${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}:${PIHOLE_DNS_PORT}:53/tcp
+      - ${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}:${PIHOLE_DNS_PORT}:53/udp
+      - ${DNS_SECONDARY_IP:?Set DNS_SECONDARY_IP in the tracked environment file}:${PIHOLE_DNS_PORT}:53/tcp
+      - ${DNS_SECONDARY_IP:?Set DNS_SECONDARY_IP in the tracked environment file}:${PIHOLE_DNS_PORT}:53/udp
     cap_add:
       - NET_ADMIN
     logging:
@@ -770,10 +770,10 @@ configs:
       local=/lan.barlows.cool/
       local=/preprod.lan.barlows.cool/
       bogus-priv
-      address=/home/${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}
-      address=/preprod.home/${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}
-      address=/lan.barlows.cool/${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}
-      address=/preprod.lan.barlows.cool/${N100_LAN_IP:?Set N100_LAN_IP in env/.env.local}
+      address=/home/${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}
+      address=/preprod.home/${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}
+      address=/lan.barlows.cool/${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}
+      address=/preprod.lan.barlows.cool/${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}
   mosquitto_config:
     file: ./mosquitto/mosquitto.conf
   homepage_docker:

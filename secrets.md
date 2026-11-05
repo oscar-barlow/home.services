@@ -6,9 +6,10 @@ Unlike Swarm's encrypted secret store, these files are plaintext on the host
 and need protection through filesystem permissions and backups.
 
 The default directory is `/etc/home-services/secrets`, with `prod` and
-`preprod` subdirectories. Override the root using `SECRETS_DIR` in
-`env/.env.local` if needed. Each environment directory must belong to root
-and have mode 0700. Install secret files as root with mode 0444 so processes
+`preprod` subdirectories. Set the root using `SECRETS_DIR` in the tracked
+`env/.env.prod` and `env/.env.preprod` files. The path is public configuration;
+secret values stay in the protected files. Each environment directory must
+belong to root and have mode 0700. Install secret files as root with mode 0444 so processes
 inside containers can read them even when they run as a non-root UID. The
 protected parent directory prevents ordinary host users from reading them.
 Compose cannot remap ownership or mode for file-backed secrets; the host
