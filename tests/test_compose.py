@@ -29,7 +29,7 @@ class ComposeMigrationTests(unittest.TestCase):
             "homepage", "homepage-proxy", "pihole", "traefik", "home-assistant",
             "mosquitto", "zigbee2mqtt", "audiobookshelf", "kavita", "pocket-id",
             "trek", "immich-redis", "immich-postgres", "immich-machine-learning",
-            "immich-server", "jellyfin",
+            "immich-server", "jellyfin", "readeck",
         }
         for environment, model in self.models.items():
             self.assertEqual(set(model["services"]), expected)
@@ -104,6 +104,21 @@ class ComposeMigrationTests(unittest.TestCase):
             for secret in model["secrets"].values():
                 self.assertIn(f"/{environment}/", secret["file"])
                 self.assertNotIn("external", secret)
+
+    def test_readeck_state_and_urls_are_isolated_without_host_ports(self):
+        for environment, model in self.models.items():
+            service = model["services"]["readeck"]
+            self.assertEqual(service["scale"], 1)
+            self.assertEqual(service["user"], "1000:1000")
+            self.assertNotIn("ports", service)
+            mount = next(v for v in service["volumes"] if v["target"] == "/readeck")
+            self.assertEqual(mount["source"], f"/srv/data/{environment}/readeck/data")
+            self.assertFalse(mount.get("bind", {}).get("create_host_path", False))
+            domain = "lan.barlows.cool" if environment == "prod" else "preprod.lan.barlows.cool"
+            self.assertEqual(service["environment"]["READECK_ALLOWED_HOSTS"], f"readeck.{domain}")
+            self.assertEqual(service["environment"]["READECK_SERVER_BASE_URL"], f"https://readeck.{domain}")
+            self.assertEqual(service["labels"][f"traefik.http.services.readeck-{environment}.loadbalancer.server.port"], "8000")
+            self.assertIn("healthcheck", service)
 
 
 class PreflightTests(unittest.TestCase):

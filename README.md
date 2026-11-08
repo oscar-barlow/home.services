@@ -22,6 +22,7 @@ store, stopping old workloads, moving the Zigbee dongle, DNS and rollback.
 | Kavita | Books and papers |
 | Pocket ID | Sign-in provider |
 | Trek | Home application |
+| [Readeck](readeck/README.md) | Save articles and bookmarks for later |
 | Immich | Photos, database, cache and machine learning |
 | Homepage | Automatic container discovery; currently disabled in both environments |
 

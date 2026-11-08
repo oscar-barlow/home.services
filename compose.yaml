@@ -753,6 +753,57 @@ services:
       options:
         max-size: 10m
         max-file: '3'
+  readeck:
+    image: codeberg.org/readeck/readeck:${READECK_VERSION}
+    scale: ${READECK_REPLICAS}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    mem_limit: 512M
+    mem_reservation: 128M
+    user: 1000:1000
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      READECK_LOG_LEVEL: info
+      READECK_LOG_FORMAT: text
+      READECK_SERVER_HOST: 0.0.0.0
+      READECK_SERVER_PORT: '8000'
+      READECK_ALLOWED_HOSTS: readeck.${DOMAIN_SUFFIX}
+      READECK_SERVER_BASE_URL: https://readeck.${DOMAIN_SUFFIX}
+    volumes:
+      - type: bind
+        source: /srv/data/${ENV_NAME}/readeck/data
+        target: /readeck
+        bind:
+          create_host_path: false
+    networks:
+      - backend
+      - ingress
+    labels:
+      - home-services.managed=true
+      - traefik.enable=true
+      - traefik.docker.network=homelab-ingress
+      - traefik.http.routers.readeck-${ENV_NAME}.rule=Host(`readeck.${DOMAIN_SUFFIX}`)
+      - traefik.http.routers.readeck-${ENV_NAME}.tls=true
+      - traefik.http.routers.readeck-${ENV_NAME}.tls.certresolver=desec
+      - traefik.http.routers.readeck-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}
+      - traefik.http.routers.readeck-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}
+      - traefik.http.services.readeck-${ENV_NAME}.loadbalancer.server.port=8000
+    healthcheck:
+      test:
+        - CMD
+        - /bin/readeck
+        - healthcheck
+        - -config
+        - config.toml
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 networks:
   backend:
     driver: bridge
