@@ -15,7 +15,7 @@ protected parent directory prevents ordinary host users from reading them.
 Compose cannot remap ownership or mode for file-backed secrets; the host
 permissions are used directly.
 
-| Filename | Used by | Migration requirement |
+| Filename | Used by | Requirement |
 | --- | --- | --- |
 | `pocket_id_encryption_key` | Pocket ID | Preserve each environment's existing key |
 | `immich_db_password` | Immich server and Postgres | Preserve the existing production password |
@@ -25,15 +25,12 @@ permissions are used directly.
 Preprod only needs the Pocket ID key with its current enabled-service settings.
 The other secret declarations can remain without corresponding host files
 while their consumers are scaled to zero. Before enabling those services,
-provision the appropriate environment's secrets. `release_manager_github_token`
-was unused and is no longer declared.
+provision the appropriate environment's secrets.
 
 `sudo make preflight ENV=prod` checks only enabled services and reports paths,
-never values. See [MIGRATION.md](MIGRATION.md) for installing the recovered keys.
+never values.
 Do not generate replacements for Pocket ID's existing encryption keys or for
-the password used by an existing Immich database during this migration.
+the password used by an existing Immich database without a coordinated rotation.
 
-The recovered directory and cold Swarm-state backup are additional recovery
-copies; retain them until migration is verified. Back up this host secret
-directory separately with encryption: the current data backup script only
+Back up the host secret directory separately with encryption: the current data backup script only
 covers `/srv/data/${ENV_NAME}`.

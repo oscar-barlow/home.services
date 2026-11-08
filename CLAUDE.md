@@ -11,7 +11,7 @@
 ## Commands
 
 - `make config ENV=prod` or `ENV=preprod`: validate Compose without deployment.
-- `make check`: run configuration and migration preflight tests.
+- `make check`: run configuration and preflight tests.
 - `sudo make preflight ENV=prod`: check the actual N100 before deployment.
 - `sudo make env-up ENV=prod`: start or update services after preflight.
 - `sudo make env-down ENV=prod`: stop services without deleting bind-mounted data.
@@ -21,8 +21,7 @@
 The N100 is remote infrastructure. Do not SSH into it or run deployment,
 network-management, storage-management or migration commands from the development
 machine. Make changes and validate locally; provide commands for the user to run.
-See `MIGRATION.md` for the one-time Swarm cutover. No Swarm orchestration remains
-in normal operation.
+No Swarm orchestration remains in normal operation.
 
 ## Style and maintenance
 

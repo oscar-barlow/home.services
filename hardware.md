@@ -97,11 +97,7 @@ iface enp1s0 inet dhcp
 
 All services run on the N100 using Compose. There are no placement labels or
 manager roles. The N100 needs access to its existing `/srv/data` storage, the
-Intel GPU and the Zigbee coordinator moved from the Pi. See [MIGRATION.md](MIGRATION.md).
-
-The Pi is retired after service, DNS and Tailscale route verification. Keep it
-powered off during cutover so it cannot restart old services against shared
-storage or advertise competing routes.
+Intel GPU and the Zigbee coordinator. See [zigbee.md](zigbee.md) for setup.
 
 ## Notes
 
