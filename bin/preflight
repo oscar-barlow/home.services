@@ -58,6 +58,8 @@ def validate(model, selected=(), addresses=()):
             source = model["configs"][config["source"]].get("file")
             if source and not Path(source).is_file():
                 errors.append(f"{name}: missing configuration {source}")
+        if name == "beszel-agent" and not service.get("environment", {}).get("KEY", "").strip():
+            errors.append("beszel-agent: set BESZEL_AGENT_KEY to the hub public key before enabling the agent")
         if name == "traefik":
             for mount in service.get("volumes", []):
                 if mount["target"] == "/letsencrypt":

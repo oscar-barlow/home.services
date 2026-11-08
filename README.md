@@ -23,12 +23,13 @@ store, stopping old workloads, moving the Zigbee dongle, DNS and rollback.
 | Pocket ID | Sign-in provider |
 | Trek | Home application |
 | Immich | Photos, database, cache and machine learning |
-| Homepage | Automatic container discovery; currently disabled in both environments |
+| [Beszel](beszel/README.md) | N100 and Docker resource monitoring |
 
 Image versions and replica counts remain in `env/.env.prod` and
 `env/.env.preprod`. A replica count of `0` disables a service. Prod runs the
 single Traefik instance that routes both environments. Pi-hole, MQTT, Zigbee
-and Immich are currently enabled only in prod.
+and Immich are currently enabled only in prod. Beszel runs in prod; its agent
+is enabled after the initial hub pairing described in [beszel/README.md](beszel/README.md).
 
 ## Configuration and commands
 
@@ -53,7 +54,7 @@ sudo make env-up ENV=prod
 sudo make env-up ENV=preprod
 make list-services ENV=prod
 make logs ENV=prod SERVICE=traefik
-make service-down ENV=prod SERVICE=homepage
+make service-down ENV=prod SERVICE=beszel
 sudo make service-up ENV=prod SERVICE=pocket-id
 sudo make env-down ENV=preprod
 ```

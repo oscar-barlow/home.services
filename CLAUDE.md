@@ -29,7 +29,7 @@ in normal operation.
 - Use two-space YAML indentation and standard Compose service/volume names.
 - Add code or configuration comments only when explicitly requested.
 - Use bridge networks and Traefik's Docker provider; databases stay on backend networks.
-- Preserve automatic Homepage discovery and environment-scoped routing labels.
+- Preserve environment-scoped routing labels.
 - Correct nearby documentation against actual configuration; keep cleanup scoped.
 
 ## Branches and pull requests

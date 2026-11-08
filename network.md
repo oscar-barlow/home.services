@@ -32,13 +32,12 @@ aliases such as `homelab-prod_mosquitto` and
 settings. Use these aliases or backend service names for application traffic;
 do not depend on short-name DNS on the shared ingress bridge.
 
-## Homepage discovery
+## Host monitoring
 
-Each environment has an internal `homepage-discovery` bridge and one read-only
-socket proxy. Only Homepage and its proxy attach to that bridge. The proxy has
-container reads enabled and no published port. Homepage's `instanceName` and
-`homepage.instance.${ENV_NAME}.*` labels scope discovery to its own environment.
-Both Homepage and its proxy are currently scaled to zero.
+Beszel uses the shared ingress bridge for its HTTPS interface. Its agent uses
+host networking to measure N100 network traffic, with a Unix socket shared
+with the hub instead of a listening TCP port. The production agent monitors
+containers from both environments. See [beszel/README.md](beszel/README.md).
 
 ## DNS and LAN addresses
 
@@ -56,5 +55,5 @@ make list-services ENV=prod
 ```
 
 Run `make network-down` only after both environments have been stopped. Compose
-removes its own backend and discovery networks on `env-down`; the external
+removes its own backend networks on `env-down`; the external
 ingress bridge remains until explicitly removed.

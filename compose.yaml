@@ -1,35 +1,8 @@
 name: homelab-${ENV_NAME}
 services:
-  homepage:
-    image: ghcr.io/gethomepage/homepage:${HOMEPAGE_VERSION}
-    environment:
-      TZ: Europe/London
-      HOMEPAGE_ALLOWED_HOSTS: homepage.${DOMAIN_SUFFIX}
-      HOMEPAGE_VAR_DOMAIN_SUFFIX: ${DOMAIN_SUFFIX}
-      HOMEPAGE_VAR_ENV_NAME: ${ENV_NAME}
-    volumes:
-      - type: bind
-        source: /srv/data/${ENV_NAME}/homepage/config
-        target: /app/config
-        bind:
-          create_host_path: false
-    configs:
-      - source: homepage_docker
-        target: /app/config/docker.yaml
-        mode: 0444
-      - source: homepage_settings
-        target: /app/config/settings.yaml
-        mode: 0444
-      - source: homepage_services
-        target: /app/config/services.yaml
-        mode: 0444
-    networks:
-      backend:
-        aliases:
-          - homelab-${ENV_NAME}_homepage
-      ingress: {}
-      homepage-discovery: {}
-    scale: ${HOMEPAGE_REPLICAS}
+  beszel:
+    image: henrygd/beszel:${BESZEL_VERSION}
+    scale: ${BESZEL_REPLICAS}
     restart: unless-stopped
     logging:
       driver: json-file
@@ -37,17 +10,100 @@ services:
         max-size: 10m
         max-file: '3'
     mem_limit: 256M
-    mem_reservation: 128M
+    mem_reservation: 64M
+    environment:
+      APP_URL: https://beszel.${DOMAIN_SUFFIX}
+    volumes:
+      - type: bind
+        source: /srv/data/${ENV_NAME}/beszel/data
+        target: /beszel_data
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/data/${ENV_NAME}/beszel/socket
+        target: /beszel_socket
+        bind:
+          create_host_path: false
+    networks:
+      - ingress
     labels:
-      - traefik.enable=true
-      - traefik.http.routers.homepage-${ENV_NAME}.rule=Host(`homepage.${DOMAIN_SUFFIX}`)
-      - traefik.http.routers.homepage-${ENV_NAME}.tls=true
-      - traefik.http.routers.homepage-${ENV_NAME}.tls.certresolver=desec
-      - traefik.http.routers.homepage-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}
-      - traefik.http.routers.homepage-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}
-      - traefik.http.services.homepage-${ENV_NAME}.loadbalancer.server.port=3000
-      - traefik.docker.network=homelab-ingress
       - home-services.managed=true
+      - traefik.enable=true
+      - traefik.docker.network=homelab-ingress
+      - traefik.http.routers.beszel-${ENV_NAME}.rule=Host(`beszel.${DOMAIN_SUFFIX}`)
+      - traefik.http.routers.beszel-${ENV_NAME}.tls=true
+      - traefik.http.routers.beszel-${ENV_NAME}.tls.certresolver=desec
+      - traefik.http.routers.beszel-${ENV_NAME}.tls.domains[0].main=${DOMAIN_SUFFIX}
+      - traefik.http.routers.beszel-${ENV_NAME}.tls.domains[0].sans=*.${DOMAIN_SUFFIX}
+      - traefik.http.services.beszel-${ENV_NAME}.loadbalancer.server.port=8090
+    healthcheck:
+      test:
+        - CMD
+        - /beszel
+        - health
+        - --url
+        - http://localhost:8090
+      interval: 120s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+  beszel-agent:
+    image: henrygd/beszel-agent:${BESZEL_VERSION}
+    scale: ${BESZEL_AGENT_REPLICAS}
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: '3'
+    mem_limit: 128M
+    mem_reservation: 32M
+    network_mode: host
+    environment:
+      LISTEN: /beszel_socket/beszel.sock
+      KEY: ${BESZEL_AGENT_KEY:-}
+      FILESYSTEM: /extra-filesystems/root
+    volumes:
+      - type: bind
+        source: /srv/data/${ENV_NAME}/beszel/agent
+        target: /var/lib/beszel-agent
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /srv/data/${ENV_NAME}/beszel/socket
+        target: /beszel_socket
+        bind:
+          create_host_path: false
+      - type: bind
+        source: /var/run/docker.sock
+        target: /var/run/docker.sock
+        bind:
+          create_host_path: false
+        read_only: true
+      - type: bind
+        source: /var/lib/home-services/${ENV_NAME}/beszel-root
+        target: /extra-filesystems/root
+        bind:
+          create_host_path: false
+        read_only: true
+      - type: bind
+        source: /srv/data/.beszel
+        target: /extra-filesystems/data
+        bind:
+          create_host_path: false
+        read_only: true
+    labels:
+      - home-services.managed=true
+      - traefik.enable=false
+    healthcheck:
+      test:
+        - CMD
+        - /agent
+        - health
+      interval: 120s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
   pihole:
     image: pihole/pihole:${PIHOLE_VERSION}
     environment:
@@ -90,11 +146,6 @@ services:
     mem_limit: 256M
     mem_reservation: 128M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Infrastructure
-      - homepage.instance.${ENV_NAME}.name=Pi-hole
-      - homepage.instance.${ENV_NAME}.icon=pi-hole.png
-      - homepage.instance.${ENV_NAME}.href=https://pihole.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=DNS filtering and ad blocking
       - traefik.enable=true
       - traefik.http.routers.pihole-${ENV_NAME}.rule=Host(`pihole.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.pihole-${ENV_NAME}.tls=true
@@ -129,11 +180,6 @@ services:
     mem_limit: 1G
     mem_reservation: 512M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Home
-      - homepage.instance.${ENV_NAME}.name=Home Assistant
-      - homepage.instance.${ENV_NAME}.icon=home-assistant.png
-      - homepage.instance.${ENV_NAME}.href=https://home-assistant.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Home automation
       - traefik.enable=true
       - traefik.http.routers.home-assistant-${ENV_NAME}.rule=Host(`home-assistant.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.home-assistant-${ENV_NAME}.tls=true
@@ -171,10 +217,6 @@ services:
     mem_limit: 64M
     mem_reservation: 16M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Infrastructure
-      - homepage.instance.${ENV_NAME}.name=Mosquitto
-      - homepage.instance.${ENV_NAME}.icon=mqtt.png
-      - homepage.instance.${ENV_NAME}.description=MQTT broker
       - home-services.managed=true
   zigbee2mqtt:
     image: koenkk/zigbee2mqtt:${ZIGBEE2MQTT_VERSION}
@@ -205,11 +247,6 @@ services:
     mem_limit: 256M
     mem_reservation: 128M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Home
-      - homepage.instance.${ENV_NAME}.name=Zigbee2MQTT
-      - homepage.instance.${ENV_NAME}.icon=zigbee2mqtt.png
-      - homepage.instance.${ENV_NAME}.href=https://zigbee2mqtt.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Zigbee devices
       - traefik.enable=true
       - traefik.http.routers.zigbee2mqtt-${ENV_NAME}.rule=Host(`zigbee2mqtt.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.zigbee2mqtt-${ENV_NAME}.tls=true
@@ -285,10 +322,6 @@ services:
     mem_limit: 128M
     mem_reservation: 64M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Infrastructure
-      - homepage.instance.${ENV_NAME}.name=Traefik
-      - homepage.instance.${ENV_NAME}.icon=traefik.png
-      - homepage.instance.${ENV_NAME}.description=HTTPS ingress
       - home-services.managed=true
   audiobookshelf:
     image: ghcr.io/advplyr/audiobookshelf:${AUDIOBOOKSHELF_VERSION}
@@ -335,11 +368,6 @@ services:
     mem_limit: 256M
     mem_reservation: 128M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Media
-      - homepage.instance.${ENV_NAME}.name=Audiobookshelf
-      - homepage.instance.${ENV_NAME}.icon=audiobookshelf.png
-      - homepage.instance.${ENV_NAME}.href=https://audiobookshelf.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Audiobooks and podcasts
       - traefik.enable=true
       - traefik.http.routers.audiobookshelf-${ENV_NAME}.rule=Host(`audiobookshelf.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.audiobookshelf-${ENV_NAME}.tls=true
@@ -384,11 +412,6 @@ services:
     mem_limit: 768M
     mem_reservation: 384M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Media
-      - homepage.instance.${ENV_NAME}.name=Kavita
-      - homepage.instance.${ENV_NAME}.icon=kavita.png
-      - homepage.instance.${ENV_NAME}.href=https://kavita.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Books and papers
       - traefik.enable=true
       - traefik.http.routers.kavita-${ENV_NAME}.rule=Host(`kavita.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.kavita-${ENV_NAME}.tls=true
@@ -438,11 +461,6 @@ services:
     mem_limit: 256M
     mem_reservation: 128M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Infrastructure
-      - homepage.instance.${ENV_NAME}.name=Pocket ID
-      - homepage.instance.${ENV_NAME}.icon=pocket-id.png
-      - homepage.instance.${ENV_NAME}.href=https://pocket-id.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Sign in to home services
       - traefik.enable=true
       - traefik.http.routers.pocket-id-${ENV_NAME}.rule=Host(`pocket-id.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.pocket-id-${ENV_NAME}.tls=true
@@ -506,9 +524,6 @@ services:
     mem_limit: 512M
     mem_reservation: 256M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Home
-      - homepage.instance.${ENV_NAME}.name=Trek
-      - homepage.instance.${ENV_NAME}.href=https://trek.${DOMAIN_SUFFIX}
       - traefik.enable=true
       - traefik.http.routers.trek-${ENV_NAME}.rule=Host(`trek.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.trek-${ENV_NAME}.tls=true
@@ -534,10 +549,6 @@ services:
     mem_limit: 256M
     mem_reservation: 128M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Backends
-      - homepage.instance.${ENV_NAME}.name=Immich Redis
-      - homepage.instance.${ENV_NAME}.icon=valkey.png
-      - homepage.instance.${ENV_NAME}.description=Immich cache
       - home-services.managed=true
   immich-postgres:
     image: ghcr.io/immich-app/postgres:14-vectorchord0.4.3-pgvectors0.2.0
@@ -570,10 +581,6 @@ services:
     mem_limit: 1G
     mem_reservation: 512M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Backends
-      - homepage.instance.${ENV_NAME}.name=Immich Postgres
-      - homepage.instance.${ENV_NAME}.icon=postgres.png
-      - homepage.instance.${ENV_NAME}.description=Immich database
       - home-services.managed=true
   immich-machine-learning:
     image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION}
@@ -597,10 +604,6 @@ services:
     mem_limit: 2G
     mem_reservation: 1G
     labels:
-      - homepage.instance.${ENV_NAME}.group=Backends
-      - homepage.instance.${ENV_NAME}.name=Immich Machine Learning
-      - homepage.instance.${ENV_NAME}.icon=immich.png
-      - homepage.instance.${ENV_NAME}.description=Immich machine learning
       - home-services.managed=true
   immich-server:
     image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION}
@@ -634,11 +637,6 @@ services:
     mem_limit: 2.5G
     mem_reservation: 768M
     labels:
-      - homepage.instance.${ENV_NAME}.group=Media
-      - homepage.instance.${ENV_NAME}.name=Immich
-      - homepage.instance.${ENV_NAME}.icon=immich.png
-      - homepage.instance.${ENV_NAME}.href=https://immich.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Photos and videos
       - traefik.enable=true
       - traefik.http.routers.immich-${ENV_NAME}.rule=Host(`immich.${DOMAIN_SUFFIX}`)
       - traefik.http.routers.immich-${ENV_NAME}.tls=true
@@ -648,36 +646,10 @@ services:
       - traefik.http.services.immich-${ENV_NAME}.loadbalancer.server.port=2283
       - traefik.docker.network=homelab-ingress
       - home-services.managed=true
-  homepage-proxy:
-    image: ghcr.io/tecnativa/docker-socket-proxy:${HOMEPAGE_SOCKET_PROXY_VERSION}
-    environment:
-      CONTAINERS: '1'
-      POST: '0'
-      EVENTS: '0'
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    networks:
-      - homepage-discovery
-    scale: ${HOMEPAGE_REPLICAS}
-    restart: unless-stopped
-    mem_limit: 64M
-    mem_reservation: 16M
-    logging:
-      driver: json-file
-      options:
-        max-size: 10m
-        max-file: '3'
-    labels:
-      - home-services.managed=true
   jellyfin:
     image: jellyfin/jellyfin:${JELLYFIN_VERSION}
     restart: unless-stopped
     labels:
-      - homepage.instance.${ENV_NAME}.group=Media
-      - homepage.instance.${ENV_NAME}.name=Jellyfin
-      - homepage.instance.${ENV_NAME}.icon=jellyfin.png
-      - homepage.instance.${ENV_NAME}.href=https://jellyfin.${DOMAIN_SUFFIX}
-      - homepage.instance.${ENV_NAME}.description=Films, TV and music
       - home-services.managed=true
       - traefik.enable=true
       - traefik.docker.network=homelab-ingress
@@ -759,9 +731,6 @@ networks:
   ingress:
     external: true
     name: homelab-ingress
-  homepage-discovery:
-    driver: bridge
-    internal: true
 configs:
   pihole_custom_dns:
     content: |
@@ -776,12 +745,6 @@ configs:
       address=/preprod.lan.barlows.cool/${N100_LAN_IP:?Set N100_LAN_IP in the tracked environment file}
   mosquitto_config:
     file: ./mosquitto/mosquitto.conf
-  homepage_docker:
-    file: ./homepage/docker.yaml
-  homepage_settings:
-    file: ./homepage/settings.yaml
-  homepage_services:
-    file: ./homepage/services.yaml
 secrets:
   pihole_web_password:
     file: ${SECRETS_DIR:-/etc/home-services/secrets}/${ENV_NAME}/pihole_web_password

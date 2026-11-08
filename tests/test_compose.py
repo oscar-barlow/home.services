@@ -26,7 +26,7 @@ class ComposeMigrationTests(unittest.TestCase):
 
     def test_service_inventory_and_enablement(self):
         expected = {
-            "homepage", "homepage-proxy", "pihole", "traefik", "home-assistant",
+            "beszel", "beszel-agent", "pihole", "traefik", "home-assistant",
             "mosquitto", "zigbee2mqtt", "audiobookshelf", "kavita", "pocket-id",
             "trek", "immich-redis", "immich-postgres", "immich-machine-learning",
             "immich-server", "jellyfin",
@@ -35,10 +35,10 @@ class ComposeMigrationTests(unittest.TestCase):
             self.assertEqual(set(model["services"]), expected)
             disabled = {name for name, service in model["services"].items() if service["scale"] == 0}
             if environment == "prod":
-                self.assertEqual(disabled, {"homepage", "homepage-proxy"})
+                self.assertEqual(disabled, {"beszel-agent"})
             else:
                 self.assertEqual(disabled, {
-                    "homepage", "homepage-proxy", "pihole", "traefik", "mosquitto",
+                    "beszel", "beszel-agent", "pihole", "traefik", "mosquitto",
                     "zigbee2mqtt", "immich-redis", "immich-postgres",
                     "immich-machine-learning", "immich-server",
                 })
@@ -56,8 +56,6 @@ class ComposeMigrationTests(unittest.TestCase):
             self.assertEqual(model["networks"]["ingress"]["name"], "homelab-ingress")
             for name in ("mosquitto", "immich-postgres", "immich-redis", "immich-machine-learning"):
                 self.assertNotIn("ingress", model["services"][name]["networks"])
-            self.assertTrue(model["networks"]["homepage-discovery"]["internal"])
-            self.assertNotIn("ports", model["services"]["homepage-proxy"])
 
     def test_routing_uses_container_labels_and_the_shared_bridge(self):
         for environment, model in self.models.items():
@@ -71,6 +69,28 @@ class ComposeMigrationTests(unittest.TestCase):
                     self.assertIn("ingress", service["networks"])
             labels = model["services"]["jellyfin"]["labels"]
             self.assertEqual(labels[f"traefik.http.services.jellyfin-{environment}.loadbalancer.server.port"], "8096")
+
+    def test_beszel_uses_local_socket_and_host_metrics_without_a_tcp_listener(self):
+        for environment, model in self.models.items():
+            hub = model["services"]["beszel"]
+            agent = model["services"]["beszel-agent"]
+            self.assertEqual(hub["image"], agent["image"].replace("beszel-agent:", "beszel:"))
+            self.assertEqual(agent["network_mode"], "host")
+            self.assertNotIn("ports", agent)
+            self.assertNotIn("networks", agent)
+            self.assertEqual(agent["environment"]["LISTEN"], "/beszel_socket/beszel.sock")
+            hub_mounts = {v["target"]: v for v in hub["volumes"]}
+            agent_mounts = {v["target"]: v for v in agent["volumes"]}
+            self.assertEqual(hub_mounts["/beszel_socket"]["source"], agent_mounts["/beszel_socket"]["source"])
+            self.assertEqual(hub_mounts["/beszel_data"]["source"], f"/srv/data/{environment}/beszel/data")
+            for target in ("/var/run/docker.sock", "/extra-filesystems/root", "/extra-filesystems/data"):
+                self.assertTrue(agent_mounts[target]["read_only"])
+            self.assertEqual(agent["environment"]["FILESYSTEM"], "/extra-filesystems/root")
+            for service in (hub, agent):
+                self.assertTrue(all(not v.get("bind", {}).get("create_host_path", False) for v in service["volumes"]))
+            self.assertFalse(any(name.startswith("homepage") for name in model["services"]))
+            self.assertFalse(any(label.startswith("homepage.") for service in model["services"].values()
+                                 for label in service["labels"]))
 
     def test_dns_uses_two_host_addresses_and_no_pi_wildcard(self):
         for model in self.models.values():
@@ -144,6 +164,15 @@ class PreflightTests(unittest.TestCase):
         self.model["services"]["pocket-id"]["scale"] = 0
         self.secret.unlink()
         self.assertEqual(PREFLIGHT["validate"](self.model), [])
+
+    def test_enabled_beszel_agent_requires_pairing_but_disabled_agent_does_not(self):
+        agent = {"scale": 0, "environment": {"KEY": ""}}
+        model = {"services": {"beszel-agent": agent}}
+        self.assertEqual(PREFLIGHT["validate"](model), [])
+        agent["scale"] = 1
+        self.assertTrue(any("hub public key" in e for e in PREFLIGHT["validate"](model)))
+        agent["environment"]["KEY"] = "ssh-ed25519 public-key-fixture"
+        self.assertEqual(PREFLIGHT["validate"](model), [])
 
     def test_unknown_service_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "Unknown services"):
