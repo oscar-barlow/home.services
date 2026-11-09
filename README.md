@@ -5,10 +5,6 @@ preproduction are separate Compose projects, `homelab-prod` and
 `homelab-preprod`, built from the same [compose.yaml](compose.yaml).
 The Raspberry Pi and Docker Swarm are no longer required.
 
-For an existing Swarm installation, follow [MIGRATION.md](MIGRATION.md) before
-starting these projects. It covers recovered secrets, the existing certificate
-store, stopping old workloads, moving the Zigbee dongle, DNS and rollback.
-
 ## Services
 
 | Service | Purpose |
@@ -40,9 +36,9 @@ these settings through git; no local env file needs copying to the N100.
 Both addresses must already be assigned to the N100. See [dns.md](dns.md).
 
 `env/.env.local` is an optional ignored override, loaded after the tracked file.
-If you created one using the earlier migration guide, remove duplicate entries
-or the file itself to use the tracked settings. Secret values remain in their
-separate protected files; the tracked `SECRETS_DIR` only specifies their path.
+Remove duplicate entries or the file itself to use the tracked settings.
+Secret values remain in their separate protected files; the tracked
+`SECRETS_DIR` only specifies their path.
 
 ```bash
 make config ENV=prod

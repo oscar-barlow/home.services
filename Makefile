@@ -6,7 +6,7 @@ COMPOSE = ENV="$(ENV)" bin/compose
 
 help:
 	@echo "make config ENV=prod|preprod         Validate the Compose configuration"
-	@echo "make check                          Run migration configuration checks"
+	@echo "make check                          Run configuration and preflight checks"
 	@echo "sudo make preflight ENV=prod|preprod Check secrets, storage and old containers"
 	@echo "sudo make env-up ENV=prod|preprod    Start or update an environment on the N100"
 	@echo "sudo make env-down ENV=prod|preprod  Stop an environment without deleting data"
