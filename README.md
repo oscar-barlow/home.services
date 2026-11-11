@@ -18,6 +18,7 @@ The Raspberry Pi and Docker Swarm are no longer required.
 | Kavita | Books and papers |
 | Pocket ID | Sign-in provider |
 | Trek | Home application |
+| [Readeck](readeck/README.md) | Save articles and bookmarks for later |
 | Immich | Photos, database, cache and machine learning |
 | Homepage | Automatic container discovery; currently disabled in both environments |
 
